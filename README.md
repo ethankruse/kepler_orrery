@@ -11,7 +11,8 @@ installed (most are defaults in every python installation):
 * `matplotlib`
 * `glob`
 
-To create the movie or gif however, ffmpeg must also be installed to run
+To create the movie or gif from the output series of png files however,
+ffmpeg must also be installed to run
 the *.sh files.
 
 All appropriate settings for the movie creation are listed at the top of
