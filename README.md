@@ -1,7 +1,7 @@
 # Kepler Orrery
 
 This is the source code to create the Kepler orrery featured in
-(this video)[https://www.youtube.com/watch?v=_DnDeBa0KFc].
+[this video](https://www.youtube.com/watch?v=_DnDeBa0KFc).
 
 Everything can be run using python assuming the following packages are
 installed (most are defaults in every python installation):
@@ -21,4 +21,4 @@ The movie should be recreated with the default settings by running
 
 `python orrery.py`
 
-`./makeorrery_movie.sh`
+`./makeorrery_movie.sh movie/ orrery_movie.mp4 30`
