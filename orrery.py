@@ -68,16 +68,17 @@ legalpha = 0.7
 # are we making the png files for a movie or gif
 makemovie = True
 # resolution of the images. Currently support 480, 720 or 1080.
-reso = 480
+reso = 1080
 
 # output directory for the images in the movie
-outdir = os.path.join(cd, 'orrery-40s/')
-# outdir = os.path.join(cd, 'movie/')
+# (will be created if it doesn't yet exist)
+# outdir = os.path.join(cd, 'orrery-40s/')
+outdir = os.path.join(cd, 'movie/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
-nframes = 40 * 20
-# nframes = 60 * 30
+# nframes = 40 * 20
+nframes = 60 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
@@ -524,7 +525,7 @@ if makemovie and not os.path.exists(outdir):
 
 if makemovie:
     # get rid of all old png files so they don't get included in a new movie
-    oldfiles = glob(outdir + '*png')
+    oldfiles = glob(os.path.join(outdir, '*png'))
     for delfile in oldfiles:
         os.remove(delfile)
 
@@ -553,7 +554,7 @@ if makemovie:
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
 
-        plt.savefig('{0}fig{1:04d}.png'.format(outdir, ii),
+        plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
-            print str(ii) + ' of ' + str(len(times))
+            print '{0} of {1} frames'.format(ii, len(times))
