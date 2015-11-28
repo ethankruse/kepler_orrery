@@ -12,13 +12,13 @@ installed (most are defaults in every python installation):
 * `glob`
 
 To create the movie or gif from the output series of png files however,
-ffmpeg must also be installed to run
-the *.sh files.
+`ffmpeg` must also be installed to run
+the `*.sh` files.
 
 All appropriate settings for the movie creation are listed at the top of
-orrery.py and should be documented.
+`orrery.py` and should be documented.
 
-The movie should be recreated with the default settings by running
+The movie can be recreated with the default settings by running
 
 `python orrery.py`
 
