@@ -10,27 +10,29 @@ from matplotlib.ticker import FixedLocator as FL
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
 koilist = os.path.join(cd, 'KOI_List.txt')
+#koilist = os.path.join(cd, 'KOI_List_old.txt')
 
 # are we loading in system locations from a previous file (None if not)
 lcenfile = os.path.join(cd, 'orrery_centers.txt')
-# lcenfile = None
+#lcenfile = os.path.join(cd, 'orrery_centers_old.txt')
+#lcenfile = None
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-# scenfile = os.path.join(cd, 'orrery_centers_2.txt')
+#scenfile = os.path.join(cd, 'orrery_centers.txt')
 scenfile = None
 
 # add in the solar system to the plots
 addsolar = True
 # put it at a fixed location? otherwise use posinlist to place it
-fixedpos = False
+fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = 6.
-ssy = 1.
+ssx = 3.
+ssy = 0.
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
 # 0 puts it first and near the center, 1 puts it last on the outside
-posinlist = 0.25
+posinlist = 0.2
 
 # making rstart smaller or maxtry bigger takes longer but tightens the
 # circle
@@ -72,7 +74,7 @@ reso = 1080
 
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
-# outdir = os.path.join(cd, 'orrery-40s/')
+#outdir = os.path.join(cd, 'orrery-40s/')
 outdir = os.path.join(cd, 'movie/')
 
 # number of frames to produce
@@ -88,7 +90,10 @@ times = np.arange(1591 - nframes / 2., 1591, 0.5)
 inds = np.arange(len(times))
 nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
-
+x0s = np.zeros_like(times) + np.nan
+y0s = np.zeros_like(times) + np.nan
+startx, starty = 4, 0
+endx, endy = -4, 0
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -99,11 +104,19 @@ zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
                               zooms[zooms > 0.])
 """
 # zoom out then back in
-zooms[inds < 0.25 * nmax] = 0.35
+zooms[inds < 0.25 * nmax] = 0.45
+x0s[inds < 0.25 * nmax] = startx
+y0s[inds < 0.25 * nmax] = starty
 zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.
-zooms[inds > 0.85 * nmax] = 0.35
+zooms[inds > 0.85 * nmax] = 0.45
+x0s[inds > 0.85 * nmax] = endx
+y0s[inds > 0.85 * nmax] = endy
 zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
                               zooms[zooms > 0.])
+x0s[~np.isfinite(x0s)] = np.interp(inds[~np.isfinite(x0s)], inds[np.isfinite(x0s)],
+                              x0s[np.isfinite(x0s)])
+y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s)],
+                              y0s[np.isfinite(y0s)])
 
 # ===================================== #
 
@@ -146,7 +159,20 @@ else:
 
     # place the smallest ones first, but add noise
     # so they aren't perfectly in order
-    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 2.65)
+    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 0.5)[::-1]
+    
+    # place the smallest ones first, but add uniform noise
+    # so they aren't perfectly in order
+    #inds = np.argsort(maxsemis + np.random.uniform(low=-2, high=2, size=len(maxsemis)))[::-1]
+    
+    # purely random order
+    #np.random.shuffle(inds)
+    
+    # biggest ones first, small ones fill in
+    #bigs = np.where(maxsemis > 1.)[0]
+    #smalls = np.where(maxsemis <= 1.)[0]
+    #np.random.shuffle(smalls)
+    #inds = np.concatenate((bigs, smalls))
 
     # reorder to place them
     maxsemis = maxsemis[inds]
@@ -503,7 +529,7 @@ txtyoff2 = txtyoffs2[reso]
 
 # put in the credits in the top right
 text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                time0.strftime('Kepler Orrery IV\n%d %b %Y'), color=fontcol,
+                time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
                 family=fontfam, fontproperties=prop,
                 fontsize=fsz2, zorder=5, transform=ax.transAxes)
 plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
@@ -536,13 +562,13 @@ if makemovie:
         text.remove()
 
         # re-zoom to appropriate level
-        plt.xlim([x0 - xdiff * zooms[ii], x0 + xdiff * zooms[ii]])
-        plt.ylim([y0 - ydiff * zooms[ii], y0 + ydiff * zooms[ii]])
+        plt.xlim([x0s[ii] - xdiff * zooms[ii], x0s[ii] + xdiff * zooms[ii]])
+        plt.ylim([y0s[ii] - ydiff * zooms[ii], y0s[ii] + ydiff * zooms[ii]])
 
         newt = time0 + dt.timedelta(time)
         # put in the credits in the top right
         text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                        newt.strftime('Kepler Orrery IV\n%d %b %Y'),
+                        newt.strftime('Kepler Orrery V\n%d %b %Y'),
                         color=fontcol, family=fontfam,
                         fontproperties=prop,
                         fontsize=fsz2, zorder=5, transform=ax.transAxes)
