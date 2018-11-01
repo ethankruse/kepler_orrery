@@ -1,7 +1,7 @@
 # Kepler Orrery
 
 This is the source code to create the Kepler orrery featured in
-[this video](https://www.youtube.com/watch?v=_DnDeBa0KFc).
+[this video (update 5)](https://www.youtube.com/watch?v=Td_YeAdygJE) and [update 4](https://www.youtube.com/watch?v=_DnDeBa0KFc).
 
 Everything can be run using python assuming the following packages are
 installed (most are defaults in every python installation):
