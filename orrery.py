@@ -9,17 +9,16 @@ from matplotlib.ticker import FixedLocator as FL
 
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
-koilist = os.path.join(cd, 'KOI_List.txt')
-#koilist = os.path.join(cd, 'KOI_List_old.txt')
+koilist = os.path.join(cd, 'toilist.txt')
 
 # are we loading in system locations from a previous file (None if not)
-lcenfile = os.path.join(cd, 'orrery_centers.txt')
-#lcenfile = os.path.join(cd, 'orrery_centers_old.txt')
+lcenfile = os.path.join(cd, 'tess_centers.txt')
 #lcenfile = None
+
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-#scenfile = os.path.join(cd, 'orrery_centers.txt')
 scenfile = None
+#scenfile = os.path.join(cd, 'tess_centers_all.txt')
 
 # add in the solar system to the plots
 addsolar = True
@@ -27,18 +26,18 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = 3.
+ssx = 0.
 ssy = 0.
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
 # 0 puts it first and near the center, 1 puts it last on the outside
-posinlist = 0.2
+posinlist = 0.1
 
 # making rstart smaller or maxtry bigger takes longer but tightens the
 # circle
 # Radius of the circle (AU) to initially try placing a system
 # when generating locations
-rstart = 4.
+rstart = 2
 # number of tries to randomly place a system at a given radius
 # before expanding the circle
 maxtry = 50
@@ -75,16 +74,17 @@ reso = 1080
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
 #outdir = os.path.join(cd, 'orrery-40s/')
-outdir = os.path.join(cd, 'movie/')
+outdir = os.path.join(cd, 'tess/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
 # nframes = 40 * 20
-nframes = 60 * 30
+nframes = 40 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
-times = np.arange(1591 - nframes / 2., 1591, 0.5)
+#times = np.arange(1591 - nframes / 2., 1591, 0.5)
+times = np.arange(1325, 1325 + nframes/4., 0.25)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -92,8 +92,8 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = 4, 0
-endx, endy = -4, 0
+startx, starty = 0, 0
+endx, endy = 0, 0
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -104,11 +104,11 @@ zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
                               zooms[zooms > 0.])
 """
 # zoom out then back in
-zooms[inds < 0.25 * nmax] = 0.45
+zooms[inds < 0.25 * nmax] = 1.05
 x0s[inds < 0.25 * nmax] = startx
 y0s[inds < 0.25 * nmax] = starty
-zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.
-zooms[inds > 0.85 * nmax] = 0.45
+zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.05
+zooms[inds > 0.85 * nmax] = 1.05
 x0s[inds > 0.85 * nmax] = endx
 y0s[inds > 0.85 * nmax] = endy
 zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
@@ -121,14 +121,24 @@ y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s
 # ===================================== #
 
 # reference time for the Kepler data
-time0 = dt.datetime(2009, 1, 1, 12)
+time0 = dt.datetime(2014, 12, 8, 12)
 
 # the KIC number given to the solar system
 kicsolar = -5
 
 # load in the data from the KOI list
-kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
-    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
+#kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
+#    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
+
+kics, pds, it0s, radius, iteqs, startemp, starrad = np.genfromtxt(
+    koilist, unpack=True, usecols=(0, 9, 7, 20, 22, 23, 18), delimiter=',')
+
+kics = kics.astype(int)
+
+# derive semimajor axis in solar radii
+semi = ((startemp / iteqs) * (0.7**0.25))**2. * starrad/2.
+# convert from solar radii to AU
+semi /= 215.
 
 # grab the KICs with known parameters
 good = (np.isfinite(semi) & np.isfinite(pds) &
@@ -209,7 +219,7 @@ else:
 
         # progress bar
         if (ii % 20) == 0:
-            print 'Placing {0} of {1} planets'.format(ii, nplan)
+            print('Placing {0} of {1} planets'.format(ii, nplan))
 
         # put the solar system at its fixed position if desired
         if multikics[ii] == kicsolar and fixedpos:
@@ -490,26 +500,46 @@ for ii in np.arange(len(solarscale)):
 ax2 = fig.add_axes([cbxoff - 0.005, 0.54, 0.01, 0.3])
 ax2.set_zorder(2)
 cbar = plt.colorbar(tmp, cax=ax2, extend='both', ticks=ticks)
+cbar2 = ax2.twinx()
 # remove the white/black outline around the color bar
 cbar.outline.set_linewidth(0)
 # allow two different tick scales
-cbar.ax.minorticks_on()
+#cbar.ax.minorticks_on()
 # turn off tick lines and put the physical temperature scale on the left
 cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='on',
-                    labelright='off', zorder=5)
-# turn off tick lines and put the physical temperature approximations
-# on the right
-cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='off',
-                    labelright='on', zorder=5)
-# say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_minor_locator(FL(tmp.norm([255, 409, 730, 1200])))
+                    left=False, right=False, length=5, labelleft=True,
+                    labelright=False, zorder=5)
+
 cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1, zorder=5)
+# turn off tick lines and put the physical temperature approximations
+# on the right
+#cbar.ax.set_yticks([255, 409, 730, 1200], minor=True)
+#cbar.set_ticks(FL(tmp.norm([255, 409, 730, 1200])))
+
+exlen = 0.05
+ydif = ticks.max() - ticks.min()
+cbar2.set_ylim(ticks.min()-exlen*ydif, ticks.max()+exlen*ydif)
+cbar2.set_yticks([255, 409, 730, 1200])
+cbar2.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
+                      color=fontcol, family=fontfam,
+                      fontproperties=prop, fontsize=fsz1, zorder=5, va='center')
+
+"""
+cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
+                    left=False, right=False, length=5, labelleft=False,
+                    labelright=True, zorder=5)
+# say where to put the physical temperature approximations and give them labels
+#cbar.ax.yaxis.set_minor_locator(FL(tmp.norm([255, 409, 730, 1200])))
+
+
+
+
 cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
                         minor=True, color=fontcol, family=fontfam,
-                        fontproperties=prop, fontsize=fsz1)
+                        fontproperties=prop, fontsize=fsz1, zorder=5)
+"""
+
 clab = 'Planet Equilibrium\nTemperature (K)'
 # add the overall label at the bottom of the color bar
 cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
@@ -529,7 +559,7 @@ txtyoff2 = txtyoffs2[reso]
 
 # put in the credits in the top right
 text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
+                time0.strftime('TESS Orrery I\n%d %b %Y'), color=fontcol,
                 family=fontfam, fontproperties=prop,
                 fontsize=fsz2, zorder=5, transform=ax.transAxes)
 plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
@@ -568,7 +598,7 @@ if makemovie:
         newt = time0 + dt.timedelta(time)
         # put in the credits in the top right
         text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                        newt.strftime('Kepler Orrery V\n%d %b %Y'),
+                        newt.strftime('TESS Orrery I\n%d %b %Y'),
                         color=fontcol, family=fontfam,
                         fontproperties=prop,
                         fontsize=fsz2, zorder=5, transform=ax.transAxes)
@@ -583,4 +613,4 @@ if makemovie:
         plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
-            print '{0} of {1} frames'.format(ii, len(times))
+            print('{0} of {1} frames'.format(ii, len(times)))
