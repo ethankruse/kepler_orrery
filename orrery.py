@@ -7,18 +7,16 @@ from diverging_map import diverge_map
 import matplotlib.font_manager as fm
 from matplotlib.ticker import FixedLocator as FL
 
-# what KOI file to use
+# what planet parameter file to use
 cd = os.path.abspath(os.path.dirname(__file__))
-koilist = os.path.join(cd, 'KOI_List.txt')
-#koilist = os.path.join(cd, 'KOI_List_old.txt')
+koilist = os.path.join(cd, 'luvoir_orrery.txt')
 
 # are we loading in system locations from a previous file (None if not)
-lcenfile = os.path.join(cd, 'orrery_centers.txt')
-#lcenfile = os.path.join(cd, 'orrery_centers_old.txt')
+lcenfile = os.path.join(cd, 'luvoir_centers.txt')
 #lcenfile = None
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-#scenfile = os.path.join(cd, 'orrery_centers.txt')
+#scenfile = os.path.join(cd, 'luvoir_centers2.txt')
 scenfile = None
 
 # add in the solar system to the plots
@@ -27,7 +25,7 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = 3.
+ssx = 50.
 ssy = 0.
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
@@ -38,7 +36,7 @@ posinlist = 0.2
 # circle
 # Radius of the circle (AU) to initially try placing a system
 # when generating locations
-rstart = 4.
+rstart = 10.
 # number of tries to randomly place a system at a given radius
 # before expanding the circle
 maxtry = 50
@@ -59,7 +57,7 @@ orbitcol = '#424242'
 orbitalpha = 1.
 
 # add a background to the legend to distinguish it?
-legback = False
+legback = True
 # if so, use this color and alpha
 legbackcol = bkcol
 legalpha = 0.7
@@ -67,10 +65,10 @@ legalpha = 0.7
 # are we making the png files for a movie or gif
 makemovie = True
 # resolution of the images. Currently support 480, 720 or 1080.
-reso = 'mag'
+reso = 1080
 
 # don't plot any of the image text
-notext = True
+notext = False
 
 
 # font sizes at various resolutions
@@ -105,16 +103,17 @@ txtyoffs2 = {480: 0.18, 720: 0.144, 1080: 0.144, 'mag': 0.144}
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
 #outdir = os.path.join(cd, 'orrery-40s/')
-outdir = os.path.join(cd, 'magazine/')
+outdir = os.path.join(cd, 'luvoir/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
 # nframes = 40 * 20
-nframes = 3
+nframes = 300
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
-times = np.arange(1591 - nframes / 2., 1591, 0.5)
+# 11420 = April 9, 2040
+times = np.arange(11420 - nframes * 5., 11420, 5.)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -154,16 +153,32 @@ zooms = zooms * 0. + 1.
 # reference time for the Kepler data
 time0 = dt.datetime(2009, 1, 1, 12)
 
+
 # the KIC number given to the solar system
 kicsolar = -5
 
-# load in the data from the KOI list
-kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
-    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
+# load in the data from the planet list
+# kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
+#     koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
+
+# star_ID,Period(yrs),Radius(REarth),a(AU),BBtemp(K),planet_type
+kics, pds, radius, semi, iteqs, ptypes = np.genfromtxt(
+    koilist, unpack=True, delimiter=',')
+
+np.random.seed(42)
+# sort out the luvoir parameters and give random t0s
+pds *= 365.
+it0s = np.random.rand(pds.size) * pds
+
 
 # grab the KICs with known parameters
 good = (np.isfinite(semi) & np.isfinite(pds) &
         np.isfinite(radius) & np.isfinite(iteqs))
+# remove the luvoir overlaps
+vals = np.where((ptypes == 1) | (ptypes == 4))[0]
+toremove = np.random.choice(vals, size=54, replace=False)
+good[toremove] = False
+
 
 kics = kics[good]
 pds = pds[good]
@@ -172,15 +187,17 @@ semi = semi[good]
 radius = radius[good]
 iteqs = iteqs[good]
 
+
 # if we've already decided where to put each system, load it up
 if lcenfile is not None:
     multikics, xcens, ycens, maxsemis = np.loadtxt(lcenfile, unpack=True)
     nplan = len(multikics)
 # otherwise figure out how to fit all the planets into a nice distribution
 else:
+    np.random.seed()
     # we only want to plot multi-planet systems
     multikics, nct = np.unique(kics, return_counts=True)
-    multikics = multikics[nct > 1]
+    # multikics = multikics[nct > 1]
     maxsemis = multikics * 0.
     nplan = len(multikics)
 
@@ -190,7 +207,7 @@ else:
 
     # place the smallest ones first, but add noise
     # so they aren't perfectly in order
-    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 0.5)[::-1]
+    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 1.5)[::-1]
     
     # place the smallest ones first, but add uniform noise
     # so they aren't perfectly in order
@@ -226,7 +243,7 @@ else:
     # ratio = x extent / y extent
     # what is the maximum and minimum aspect ratio of the final placement
     maxratio = 16.5 / 9
-    minratio = 14.3 / 9
+    minratio = 15.5 / 9
 
     xcens = np.array([])
     ycens = np.array([])
@@ -240,7 +257,7 @@ else:
 
         # progress bar
         if (ii % 20) == 0:
-            print 'Placing {0} of {1} planets'.format(ii, nplan)
+            print(f'Placing {ii} of {nplan} planets')
 
         # put the solar system at its fixed position if desired
         if multikics[ii] == kicsolar and fixedpos:
@@ -277,7 +294,7 @@ else:
             # either the systems overlap or we've placed a lot and
             # the aspect ratio isn't good enough so try again
             if len(bad[0]) == 1 and (
-                        (minratio <= ratio <= maxratio) or ii < 50):
+                        (minratio <= ratio <= maxratio) or ii < 20):
                 repeat = False
 
             # if we've been trying to place this system but can't get it
@@ -286,7 +303,8 @@ else:
                 ct = 0
                 # add equal area every time
                 r0 = np.sqrt(rstart ** 2. + r0 ** 2.)
-
+                if r0 > 100:
+                    print(f'bad {ii}')
             ct += 1
 
     # save this placement distribution if desired
@@ -372,7 +390,7 @@ else:
     plt.ion()
 
 # create the figure at the right size (this assumes a default pix/inch of 100)
-fig = plt.figure(figsize=figsizes[reso], frameon=False)
+fig = plt.figure(figsize=figsizes[reso])
 
 # make the plot cover the entire figure with the right background colors
 ax = fig.add_axes([0.0, 0, 1, 1])
@@ -590,7 +608,7 @@ if makemovie:
             # put in the credits in the top right
             text.remove()
             text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                            newt.strftime('Kepler Orrery V\n%d %b %Y'),
+                            newt.strftime('LUVOIR Orrery\n%d %b %Y'),
                             color=fontcol, family=fontfam,
                             fontproperties=prop,
                             fontsize=fsz2, zorder=5, transform=ax.transAxes)
@@ -604,6 +622,6 @@ if makemovie:
 
         # add back facecolor and edgecolor if don't want transparent
         plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
-                    transparent=True)
+                    transparent=False, facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
-            print '{0} of {1} frames'.format(ii, len(times))
+            print(f'{ii} of {len(times)} frames')
