@@ -12,11 +12,11 @@ cd = os.path.abspath(os.path.dirname(__file__))
 koilist = os.path.join(cd, 'luvoir_orrery.txt')
 
 # are we loading in system locations from a previous file (None if not)
-lcenfile = os.path.join(cd, 'luvoir_centers.txt')
+lcenfile = os.path.join(cd, 'luvoir_centers2.txt')
 #lcenfile = None
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-#scenfile = os.path.join(cd, 'luvoir_centers2.txt')
+#scenfile = os.path.join(cd, 'luvoir_centers3.txt')
 scenfile = None
 
 # add in the solar system to the plots
@@ -41,7 +41,7 @@ rstart = 10.
 # before expanding the circle
 maxtry = 50
 # minimum spacing between systems (AU)
-spacing = 0.3
+spacing = 2.5
 
 # which font to use for the text
 fontfile = os.path.join(cd, 'Avenir-Black.otf')
@@ -207,7 +207,7 @@ else:
 
     # place the smallest ones first, but add noise
     # so they aren't perfectly in order
-    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 1.5)[::-1]
+    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 0.5)[::-1]
     
     # place the smallest ones first, but add uniform noise
     # so they aren't perfectly in order
