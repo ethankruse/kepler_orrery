@@ -12,11 +12,11 @@ cd = os.path.abspath(os.path.dirname(__file__))
 koilist = os.path.join(cd, 'luvoir_orrery.txt')
 
 # are we loading in system locations from a previous file (None if not)
-lcenfile = os.path.join(cd, 'luvoir_centers2.txt')
+lcenfile = os.path.join(cd, 'luvoir_centers3.txt')
 #lcenfile = None
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-#scenfile = os.path.join(cd, 'luvoir_centers3.txt')
+#scenfile = os.path.join(cd, 'luvoir_centers4.txt')
 scenfile = None
 
 # add in the solar system to the plots
@@ -108,12 +108,12 @@ outdir = os.path.join(cd, 'luvoir/')
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
 # nframes = 40 * 20
-nframes = 300
+nframes = 30 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
 # 11420 = April 9, 2040
-times = np.arange(11420 - nframes * 5., 11420, 5.)
+times = np.arange(11220, 11220 + nframes * 5., 5.)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -121,8 +121,10 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = 4, 0
-endx, endy = -4, 0
+startx, starty = 5, -2
+endx, endy = -5, -2
+
+earthcol = '#00cb00'
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -134,19 +136,21 @@ zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
 """
 # zoom out then back in
 zooms[inds < 0.25 * nmax] = 0.45
-x0s[inds < 0.25 * nmax] = startx
-y0s[inds < 0.25 * nmax] = starty
+x0s[inds < 0.05 * nmax] = startx
+y0s[inds < 0.05 * nmax] = starty
 zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.
 zooms[inds > 0.85 * nmax] = 0.45
-x0s[inds > 0.85 * nmax] = endx
-y0s[inds > 0.85 * nmax] = endy
+x0s[inds > 0.95 * nmax] = endx
+y0s[inds > 0.95 * nmax] = endy
+
 zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
                               zooms[zooms > 0.])
 x0s[~np.isfinite(x0s)] = np.interp(inds[~np.isfinite(x0s)], inds[np.isfinite(x0s)],
                               x0s[np.isfinite(x0s)])
 y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s)],
                               y0s[np.isfinite(y0s)])
-zooms = zooms * 0. + 1.
+
+zooms = zooms * 0. + 1.01
 
 # ===================================== #
 
@@ -186,6 +190,13 @@ it0s = it0s[good]
 semi = semi[good]
 radius = radius[good]
 iteqs = iteqs[good]
+ptypes = ptypes[good]
+
+# convert to insolation flux (assume albedo of 0.3)
+sbconst = 5.67e-8
+earthinsol = 1.3615e3
+iinsol = (iteqs**4.) * 4. * sbconst / 0.7
+iinsol /= earthinsol
 
 
 # if we've already decided where to put each system, load it up
@@ -237,7 +248,8 @@ else:
         else:
             insind = int(posinlist * len(maxsemis))
 
-        maxsemis = np.insert(maxsemis, insind, 1.524)
+        # maxsemis = np.insert(maxsemis, insind, 1.524)
+        maxsemis = np.insert(maxsemis, insind, 30.07)
         multikics = np.insert(multikics, insind, kicsolar)
 
     # ratio = x extent / y extent
@@ -303,8 +315,8 @@ else:
                 ct = 0
                 # add equal area every time
                 r0 = np.sqrt(rstart ** 2. + r0 ** 2.)
-                if r0 > 100:
-                    print(f'bad {ii}')
+                #if r0 > 100:
+                #    print(f'bad {ii}')
             ct += 1
 
     # save this placement distribution if desired
@@ -334,9 +346,11 @@ periods = np.array([])
 semis = np.array([])
 radii = np.array([])
 teqs = np.array([])
+insols = np.array([])
 usedkics = np.array([])
 fullxcens = np.array([])
 fullycens = np.array([])
+exoearths = np.array([]).astype(bool)
 
 for ii in np.arange(nplan):
     # known solar system parameters
@@ -355,8 +369,11 @@ for ii in np.arange(nplan):
                                         9.537, 19.19, 30.07]))
         radii = np.concatenate((radii, [0.383, 0.95, 1.0, 0.53, 10.86, 9.00,
                                         3.97, 3.86]))
-        teqs = np.concatenate((teqs, [409, 299, 255, 206, 200,
-                                      200, 200, 200]))
+        teqs = np.concatenate((teqs, [409, 299, 255, 206, 100,
+                                      80, 60, 50]))
+        insols = np.concatenate((insols, [6.67, 1.91, 1.0, 0.43, 0.037,
+                                          0.011, 0.0027, 0.0011]))
+        exoearths = np.concatenate((exoearths, [False]*8))
         fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
         fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
         continue
@@ -369,6 +386,8 @@ for ii in np.arange(nplan):
     semis = np.concatenate((semis, semi[fd]))
     radii = np.concatenate((radii, radius[fd]))
     teqs = np.concatenate((teqs, iteqs[fd]))
+    insols = np.concatenate((insols, iinsol[fd]))
+    exoearths = np.concatenate((exoearths, ptypes[fd] == 15))
     fullxcens = np.concatenate((fullxcens, np.zeros(len(fd)) + xcens[ii]))
     fullycens = np.concatenate((fullycens, np.zeros(len(fd)) + ycens[ii]))
 
@@ -381,6 +400,8 @@ periods = periods[rs]
 semis = semis[rs]
 radii = radii[rs]
 teqs = teqs[rs]
+insols = insols[rs]
+exoearths = exoearths[rs]
 fullxcens = fullxcens[rs]
 fullycens = fullycens[rs]
 
@@ -452,8 +473,9 @@ rjup = 10.864
 rmerc = 0.383
 # for the planet size legend
 solarsys = np.array([rmerc, rearth, rnep, rjup])
-pnames = ['Mercury', 'Earth', 'Neptune', 'Jupiter']
-csolar = np.array([409, 255, 46, 112])
+pnames = ['Mercury', 'Exo-Earth', 'Neptune', 'Jupiter']
+# csolar = np.array([409, 255, 46, 112])
+csolar = np.log10([6.67, 1, 0.0011, 0.037])
 
 # keep the smallest planets visible and the largest from being too huge
 solarsys = np.clip(solarsys, 0.8, 1.3 * rjup)
@@ -462,12 +484,21 @@ solarscale = sscale * solarsys
 radii = np.clip(radii, 0.8, 1.3 * rjup)
 pscale = sscale * radii
 
+"""
 # color bar temperature tick values and labels
 ticks = np.array([250, 500, 750, 1000, 1250])
 if notext:
     labs = ['']*len(ticks)
 else:
     labs = ['250', '500', '750', '1000', '1250', '1500']
+"""  
+
+# color bar temperature tick values and labels
+ticks = np.array([-1.5, -1, 0, 1, 1.5])
+if notext:
+    labs = ['']*len(ticks)
+else:
+    labs = ['0.03', '0.1', '1', '10', '30']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -478,10 +509,18 @@ mycmap = diverge_map(RGB1=RGB1, RGB2=RGB2, numColors=15)
 
 # just plot the planets at time 0. for this default plot
 phase = 2. * np.pi * (0. - t0s) / periods
-tmp = plt.scatter(fullxcens + semis * np.cos(phase),
-                  fullycens + semis * np.sin(phase), marker='o',
-                  edgecolors='none', lw=0, s=pscale, c=teqs, vmin=ticks.min(),
+
+ie = exoearths
+tmp = plt.scatter(fullxcens[~ie] + semis[~ie] * np.cos(phase[~ie]),
+                  fullycens[~ie] + semis[~ie] * np.sin(phase[~ie]), marker='o',
+                  edgecolors='none', lw=0, s=pscale[~ie], c=np.log10(insols[~ie]), vmin=ticks.min(),
                   vmax=ticks.max(), zorder=3, cmap=mycmap, clip_on=False)
+
+tmp2 = plt.scatter(fullxcens[ie] + semis[ie] * np.cos(phase[ie]),
+                  fullycens[ie] + semis[ie] * np.sin(phase[ie]), marker='o',
+                  edgecolors='none', lw=0, s=pscale[ie], c=earthcol, 
+                  zorder=3, clip_on=False)
+
 
 fsz1 = fszs1[reso]
 fsz2 = fszs2[reso]
@@ -519,6 +558,12 @@ ax.scatter(np.zeros(len(solarscale)) + cbxoff,
            edgecolors='none', lw=0, cmap=mycmap, vmin=ticks.min(),
            vmax=ticks.max(), clip_on=False, transform=ax.transAxes)
 
+ax.scatter(np.zeros(1) + cbxoff,
+           1. - 0.13 + 0.03 * np.array([1]), s=solarscale[1],
+           c=earthcol, zorder=5, marker='o',
+           edgecolors='none', lw=0, clip_on=False, transform=ax.transAxes)
+
+
 # put in the text labels for the solar system planet scale
 for ii in np.arange(len(solarscale)):
     if not notext:
@@ -537,13 +582,13 @@ cbar.outline.set_linewidth(0)
 cbar.ax.minorticks_on()
 # turn off tick lines and put the physical temperature scale on the left
 cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='on',
-                    labelright='off', zorder=5)
+                    left=False, right=False, length=5, labelleft=True,
+                    labelright=False, zorder=5)
 # turn off tick lines and put the physical temperature approximations
 # on the right
 cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='off',
-                    labelright='on', zorder=5)
+                    left=False, right=False, length=5, labelleft=False,
+                    labelright=True, zorder=5)
 # say where to put the physical temperature approximations and give them labels
 cbar.ax.yaxis.set_minor_locator(FL(tmp.norm([255, 409, 730, 1200])))
 cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
@@ -552,7 +597,8 @@ if not notext:
     cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
                             minor=True, color=fontcol, family=fontfam,
                             fontproperties=prop, fontsize=fsz1)
-    clab = 'Planet Equilibrium\nTemperature (K)'
+    # clab = 'Planet Equilibrium\nTemperature (K)'
+    clab = 'Insolation'
     # add the overall label at the bottom of the color bar
     cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
                        size=fsz1, zorder=5)
@@ -567,7 +613,7 @@ txtyoff2 = txtyoffs2[reso]
 if not notext:
     # put in the credits in the top right
     text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                    time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
+                    time0.strftime('LUVOIR Orrery\n%d %b %Y'), color=fontcol,
                     family=fontfam, fontproperties=prop,
                     fontsize=fsz2, zorder=5, transform=ax.transAxes)
     plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
@@ -597,6 +643,7 @@ if makemovie:
     for ii, time in enumerate(times):
         # remove old planet locations and dates
         tmp.remove()
+        tmp2.remove()
         
 
         # re-zoom to appropriate level
@@ -613,12 +660,17 @@ if makemovie:
                             fontproperties=prop,
                             fontsize=fsz2, zorder=5, transform=ax.transAxes)
         # put the planets in the correct location
-        phase = 2. * np.pi * (time - t0s) / periods
-        tmp = plt.scatter(fullxcens + semis * np.cos(phase),
-                          fullycens + semis * np.sin(phase),
-                          marker='o', edgecolors='none', lw=0, s=pscale, c=teqs,
-                          vmin=ticks.min(), vmax=ticks.max(),
-                          zorder=3, cmap=mycmap, clip_on=False)
+        phase = 2. * np.pi * (time - t0s) / periods        
+        tmp = plt.scatter(fullxcens[~ie] + semis[~ie] * np.cos(phase[~ie]),
+                  fullycens[~ie] + semis[~ie] * np.sin(phase[~ie]), marker='o',
+                  edgecolors='none', lw=0, s=pscale[~ie], c=np.log10(insols[~ie]), vmin=ticks.min(),
+                  vmax=ticks.max(), zorder=3, cmap=mycmap, clip_on=False)
+
+        tmp2 = plt.scatter(fullxcens[ie] + semis[ie] * np.cos(phase[ie]),
+                  fullycens[ie] + semis[ie] * np.sin(phase[ie]), marker='o',
+                  edgecolors='none', lw=0, s=pscale[ie], c=earthcol, 
+                  zorder=3, clip_on=False)
+        
 
         # add back facecolor and edgecolor if don't want transparent
         plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
