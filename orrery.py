@@ -108,12 +108,12 @@ outdir = os.path.join(cd, 'luvoir/')
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
 # nframes = 40 * 20
-nframes = 30 * 30
+nframes = 90 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
 # 11420 = April 9, 2040
-times = np.arange(11220, 11220 + nframes * 5., 5.)
+times = np.arange(11220, 11220 + nframes * 2.5, 2.5)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -373,7 +373,8 @@ for ii in np.arange(nplan):
                                       80, 60, 50]))
         insols = np.concatenate((insols, [6.67, 1.91, 1.0, 0.43, 0.037,
                                           0.011, 0.0027, 0.0011]))
-        exoearths = np.concatenate((exoearths, [False]*8))
+        exoearths = np.concatenate((exoearths, [False, False, True, False,
+                                                False, False, False, False]))
         fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
         fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
         continue
@@ -473,7 +474,7 @@ rjup = 10.864
 rmerc = 0.383
 # for the planet size legend
 solarsys = np.array([rmerc, rearth, rnep, rjup])
-pnames = ['Mercury', 'Exo-Earth', 'Neptune', 'Jupiter']
+pnames = ['Mercury', 'Exo-Earth Candidate', 'Neptune', 'Jupiter']
 # csolar = np.array([409, 255, 46, 112])
 csolar = np.log10([6.67, 1, 0.0011, 0.037])
 
@@ -530,7 +531,7 @@ prop = fm.FontProperties(fname=fontfile)
 if addsolar:
     loc = np.where(usedkics == kicsolar)[0][0]
     if not notext:
-        plt.text(fullxcens[loc], fullycens[loc], 'Solar\nSystem', zorder=-2,
+        plt.text(fullxcens[loc], fullycens[loc]+14.3, 'Solar\nSystem', zorder=-2,
                  color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
                  horizontalalignment='center', verticalalignment='center')
 
