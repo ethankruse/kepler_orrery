@@ -209,7 +209,7 @@ else:
 
         # progress bar
         if (ii % 20) == 0:
-            print 'Placing {0} of {1} planets'.format(ii, nplan)
+            print('Placing {0} of {1} planets'.format(ii, nplan))
 
         # put the solar system at its fixed position if desired
         if multikics[ii] == kicsolar and fixedpos:
@@ -583,4 +583,4 @@ if makemovie:
         plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
-            print '{0} of {1} frames'.format(ii, len(times))
+            print('{0} of {1} frames'.format(ii, len(times)))
