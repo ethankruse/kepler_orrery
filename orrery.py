@@ -342,13 +342,13 @@ else:
 
 # create the figure at the right size (this assumes a default pix/inch of 100)
 figsizes = {480: (8.54, 4.8), 720: (8.54, 4.8), 1080: (19.2, 10.8)}
-fig = plt.figure(figsize=figsizes[reso], frameon=False)
+fig = plt.figure(figsize=figsizes[reso])
 
 # make the plot cover the entire figure with the right background colors
 ax = fig.add_axes([0.0, 0, 1, 1])
 ax.axis('off')
 fig.patch.set_facecolor(bkcol)
-plt.gca().patch.set_facecolor(bkcol)
+ax.patch.set_facecolor(bkcol)
 
 # don't count the orbits of the outer solar system in finding figure limits
 ns = np.where(usedkics != kicsolar)[0]
@@ -580,7 +580,7 @@ if makemovie:
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
 
-        plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
+        fig.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
             print('{0} of {1} frames'.format(ii, len(times)))
