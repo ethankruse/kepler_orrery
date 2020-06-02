@@ -342,13 +342,13 @@ else:
 
 # create the figure at the right size (this assumes a default pix/inch of 100)
 figsizes = {480: (8.54, 4.8), 720: (8.54, 4.8), 1080: (19.2, 10.8)}
-fig = plt.figure(figsize=figsizes[reso], frameon=False)
+fig = plt.figure(figsize=figsizes[reso])
 
 # make the plot cover the entire figure with the right background colors
 ax = fig.add_axes([0.0, 0, 1, 1])
 ax.axis('off')
 fig.patch.set_facecolor(bkcol)
-plt.gca().patch.set_facecolor(bkcol)
+ax.patch.set_facecolor(bkcol)
 
 # don't count the orbits of the outer solar system in finding figure limits
 ns = np.where(usedkics != kicsolar)[0]
@@ -453,9 +453,9 @@ if legback:
     box1widths = {480: 0.19, 720: 0.147, 1080: 0.153}
     box1heights = {480: 0.555, 720: 0.54, 1080: 0.53}
 
-    box2starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.83, 0.84)}
+    box2starts = {480: (0.79, 0.82), 720: (0.83, 0.84), 1080: (0.83, 0.84)}
     box2widths = {480: 0.21, 720: 0.17, 1080: 0.17}
-    box2heights = {480: 0.2, 720: 0.16, 1080: 0.16}
+    box2heights = {480: 0.18, 720: 0.16, 1080: 0.16}
 
     # create the rectangles at the right heights and widths
     # based on the resolution
@@ -532,7 +532,7 @@ text = plt.text(1. - txtxoff, 1. - txtyoff1,
                 time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
                 family=fontfam, fontproperties=prop,
                 fontsize=fsz2, zorder=5, transform=ax.transAxes)
-plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
+plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse',
          color=fontcol, family=fontfam,
          fontproperties=prop, fontsize=fsz1,
          zorder=5, transform=ax.transAxes)
@@ -579,8 +579,8 @@ if makemovie:
                           marker='o', edgecolors='none', lw=0, s=pscale, c=teqs,
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
-
-        plt.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
+        
+        fig.savefig(os.path.join(outdir, 'fig{0:04d}.png'.format(ii)),
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
             print('{0} of {1} frames'.format(ii, len(times)))
