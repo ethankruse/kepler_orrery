@@ -6,19 +6,22 @@ import datetime as dt
 from diverging_map import diverge_map
 import matplotlib.font_manager as fm
 from matplotlib.ticker import FixedLocator as FL
+import pandas as pd
 
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
-koilist = os.path.join(cd, 'KOI_List.txt')
+#koilist = os.path.join(cd, 'KOI_List.txt')
+koilist = os.path.join(cd, 'download_toi.txt')
 #koilist = os.path.join(cd, 'KOI_List_old.txt')
 
 # are we loading in system locations from a previous file (None if not)
-lcenfile = os.path.join(cd, 'orrery_centers.txt')
+#lcenfile = os.path.join(cd, 'orrery_centers.txt')
 #lcenfile = os.path.join(cd, 'orrery_centers_old.txt')
 #lcenfile = None
+lcenfile = os.path.join(cd, 'tess_centers.txt')
 # if we're not loading a centers file,
 # where do we want to save the one generated (None if don't save)
-#scenfile = os.path.join(cd, 'orrery_centers.txt')
+#scenfile = os.path.join(cd, 'tess_centers.txt')
 scenfile = None
 
 # add in the solar system to the plots
@@ -27,7 +30,7 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = 3.
+ssx = 0.
 ssy = 0.
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
@@ -38,12 +41,12 @@ posinlist = 0.2
 # circle
 # Radius of the circle (AU) to initially try placing a system
 # when generating locations
-rstart = 4.
+rstart = 0.5
 # number of tries to randomly place a system at a given radius
 # before expanding the circle
 maxtry = 50
 # minimum spacing between systems (AU)
-spacing = 0.3
+spacing = 0.4
 
 # which font to use for the text
 fontfile = os.path.join(cd, 'Avenir-Black.otf')
@@ -68,7 +71,7 @@ legbackcol = bkcol
 legalpha = 0.7
 
 # are we making the png files for a movie or gif
-makemovie = True
+makemovie = False
 # resolution of the images. Currently support 480, 720 or 1080.
 reso = 1080
 
@@ -121,25 +124,39 @@ y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s
 # ===================================== #
 
 # reference time for the Kepler data
-time0 = dt.datetime(2009, 1, 1, 12)
+#time0 = dt.datetime(2009, 1, 1, 12)
+time0 = dt.datetime(2014, 12, 8, 12)
 
 # the KIC number given to the solar system
 kicsolar = -5
 
+data = pd.read_csv(koilist)
+kics = data['TIC ID'].values
+pds = data['Period (days)'].values
+it0s = data['Epoch (BJD)'].values
+idists = data['Stellar Distance (pc)'].values
+radius = data['Planet Radius (R_Earth)'].values
+inc = data['Planet Insolation (Earth Flux)'].values
+srad = data['Stellar Radius (R_Sun)'].values
+stemp = data['Stellar Eff Temp (K)'].values
+slum = (srad**2) * ((stemp/5770)**4)
+semi = np.sqrt((slum / inc))
+
+
 # load in the data from the KOI list
-kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
-    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
+#kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
+#    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
 
 # grab the KICs with known parameters
-good = (np.isfinite(semi) & np.isfinite(pds) &
-        np.isfinite(radius) & np.isfinite(iteqs))
+good = (np.isfinite(semi) & np.isfinite(pds) & (pds > 0.) &
+        np.isfinite(radius) & np.isfinite(idists))
 
 kics = kics[good]
 pds = pds[good]
 it0s = it0s[good]
 semi = semi[good]
 radius = radius[good]
-iteqs = iteqs[good]
+idists = idists[good]
 
 # if we've already decided where to put each system, load it up
 if lcenfile is not None:
@@ -195,7 +212,7 @@ else:
     # ratio = x extent / y extent
     # what is the maximum and minimum aspect ratio of the final placement
     maxratio = 16.5 / 9
-    minratio = 14.3 / 9
+    minratio = 10. / 9
 
     xcens = np.array([])
     ycens = np.array([])
@@ -236,12 +253,12 @@ else:
             ratio = xex / yex
 
             # how far apart are all systems
-            dists = np.sqrt((xcens - xcens[ii]) ** 2. +
+            rdists = np.sqrt((xcens - xcens[ii]) ** 2. +
                             (ycens - ycens[ii]) ** 2.)
             rsum = maxsemis + maxsemis[ii]
 
             # systems that overlap
-            bad = np.where(dists < rsum[:ii + 1] + spacing)
+            bad = np.where(rdists < rsum[:ii + 1] + spacing)
 
             # either the systems overlap or we've placed a lot and
             # the aspect ratio isn't good enough so try again
@@ -284,7 +301,8 @@ t0s = np.array([])
 periods = np.array([])
 semis = np.array([])
 radii = np.array([])
-teqs = np.array([])
+# teqs = np.array([])
+dists = np.array([])
 usedkics = np.array([])
 fullxcens = np.array([])
 fullycens = np.array([])
@@ -306,8 +324,7 @@ for ii in np.arange(nplan):
                                         9.537, 19.19, 30.07]))
         radii = np.concatenate((radii, [0.383, 0.95, 1.0, 0.53, 10.86, 9.00,
                                         3.97, 3.86]))
-        teqs = np.concatenate((teqs, [409, 299, 255, 206, 200,
-                                      200, 200, 200]))
+        dists = np.concatenate((dists, np.ones(8)*0.01))
         fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
         fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
         continue
@@ -319,7 +336,8 @@ for ii in np.arange(nplan):
     periods = np.concatenate((periods, pds[fd]))
     semis = np.concatenate((semis, semi[fd]))
     radii = np.concatenate((radii, radius[fd]))
-    teqs = np.concatenate((teqs, iteqs[fd]))
+    # teqs = np.concatenate((teqs, iteqs[fd]))
+    dists = np.concatenate((dists, idists[fd]))
     fullxcens = np.concatenate((fullxcens, np.zeros(len(fd)) + xcens[ii]))
     fullycens = np.concatenate((fullycens, np.zeros(len(fd)) + ycens[ii]))
 
@@ -331,7 +349,8 @@ t0s = t0s[rs]
 periods = periods[rs]
 semis = semis[rs]
 radii = radii[rs]
-teqs = teqs[rs]
+#teqs = teqs[rs]
+dists = dists[rs]
 fullxcens = fullxcens[rs]
 fullycens = fullycens[rs]
 
@@ -432,7 +451,7 @@ mycmap = diverge_map(RGB1=RGB1, RGB2=RGB2, numColors=15)
 phase = 2. * np.pi * (0. - t0s) / periods
 tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                   fullycens + semis * np.sin(phase), marker='o',
-                  edgecolors='none', lw=0, s=pscale, c=teqs, vmin=ticks.min(),
+                  edgecolors='none', lw=0, s=pscale, c=dists, vmin=ticks.min(),
                   vmax=ticks.max(), zorder=3, cmap=mycmap, clip_on=False)
 
 fsz1 = fszs1[reso]
@@ -515,6 +534,8 @@ clab = 'Planet Equilibrium\nTemperature (K)'
 cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
                    size=fsz1, zorder=5)
 
+# XXX: set color bar to 5-400 light years
+
 # switch back to the main plot
 plt.sca(ax)
 
@@ -576,7 +597,7 @@ if makemovie:
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                           fullycens + semis * np.sin(phase),
-                          marker='o', edgecolors='none', lw=0, s=pscale, c=teqs,
+                          marker='o', edgecolors='none', lw=0, s=pscale, c=dists,
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
 
