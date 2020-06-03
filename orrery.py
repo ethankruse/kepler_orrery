@@ -5,7 +5,6 @@ import os
 import datetime as dt
 from diverging_map import diverge_map
 import matplotlib.font_manager as fm
-from matplotlib.ticker import FixedLocator as FL
 
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
@@ -496,15 +495,15 @@ cbar.outline.set_linewidth(0)
 cbar.ax.minorticks_on()
 # turn off tick lines and put the physical temperature scale on the left
 cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='on',
-                    labelright='off', zorder=5)
+                    left=False, right=False, length=5, labelleft=True,
+                    labelright=False, zorder=5)
 # turn off tick lines and put the physical temperature approximations
 # on the right
 cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
-                    left='off', right='off', length=5, labelleft='off',
-                    labelright='on', zorder=5)
+                    left=False, right=False, length=5, labelleft=False,
+                    labelright=True, zorder=5)
 # say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_minor_locator(FL(tmp.norm([255, 409, 730, 1200])))
+cbar.ax.yaxis.set_ticks([255, 409, 730, 1200], minor=True)
 cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1, zorder=5)
 cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
