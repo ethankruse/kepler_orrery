@@ -70,23 +70,24 @@ legbackcol = bkcol
 legalpha = 0.7
 
 # are we making the png files for a movie or gif
-makemovie = False
+makemovie = True
 # resolution of the images. Currently support 480, 720 or 1080.
 reso = 1080
 
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
 #outdir = os.path.join(cd, 'orrery-40s/')
-outdir = os.path.join(cd, 'movie/')
+outdir = os.path.join(cd, 'tess-movie/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
 # nframes = 40 * 20
-nframes = 60 * 30
+nframes = 35 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
-times = np.arange(1591 - nframes / 2., 1591, 0.5)
+tstep = 0.2
+times = np.arange(1325, 1325 + nframes*tstep, tstep)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -94,8 +95,8 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = 4, 0
-endx, endy = -4, 0
+startx, starty = 0, 0.2
+endx, endy = 0, 0.2
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -106,11 +107,11 @@ zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
                               zooms[zooms > 0.])
 """
 # zoom out then back in
-zooms[inds < 0.25 * nmax] = 0.45
+zooms[inds < 0.25 * nmax] = 1.04
 x0s[inds < 0.25 * nmax] = startx
 y0s[inds < 0.25 * nmax] = starty
-zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.
-zooms[inds > 0.85 * nmax] = 0.45
+zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.04
+zooms[inds > 0.85 * nmax] = 1.04
 x0s[inds > 0.85 * nmax] = endx
 y0s[inds > 0.85 * nmax] = endy
 zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
@@ -167,15 +168,17 @@ else:
     multikics, nct = np.unique(kics, return_counts=True)
     multikics = multikics[nct > 1]
     maxsemis = multikics * 0.
+    maxdists = multikics * 0.
     nplan = len(multikics)
 
     # the maximum size needed for each system
     for ii in np.arange(len(multikics)):
         maxsemis[ii] = np.max(semi[np.where(kics == multikics[ii])[0]])
+        maxdists[ii] = np.max(idists[np.where(kics == multikics[ii])[0]])
 
     # place the smallest ones first, but add noise
     # so they aren't perfectly in order
-    inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 0.5)[::-1]
+    inds = np.argsort(maxdists)
     
     # place the smallest ones first, but add uniform noise
     # so they aren't perfectly in order
@@ -210,8 +213,8 @@ else:
 
     # ratio = x extent / y extent
     # what is the maximum and minimum aspect ratio of the final placement
-    maxratio = 16.5 / 9
-    minratio = 10. / 9
+    maxratio = 19.5 / 9
+    minratio = 12. / 9
 
     xcens = np.array([])
     ycens = np.array([])
@@ -313,7 +316,7 @@ for ii in np.arange(nplan):
         # always start the outer solar system in the same places
         # for optimial visibility
         t0s = np.concatenate((t0s, [85., 192., 266., 180.,
-                                    times[0] - 3. * 4332.8 / 4,
+                                    times[0] + 0.1 * 4332.8,
                                     times[0] - 22. / 360 * 10755.7,
                                     times[0] - 30687 * 145. / 360,
                                     times[0] - 60190 * 202. / 360]))
@@ -426,7 +429,7 @@ rmerc = 0.383
 # for the planet size legend
 solarsys = np.array([rmerc, rearth, rnep, rjup])
 pnames = ['Mercury', 'Earth', 'Neptune', 'Jupiter']
-csolar = np.array([409, 255, 46, 112])
+csolar = np.array([0.01, 0.01, 0.01, 0.01])
 
 # keep the smallest planets visible and the largest from being too huge
 solarsys = np.clip(solarsys, 0.8, 1.3 * rjup)
@@ -436,8 +439,8 @@ radii = np.clip(radii, 0.8, 1.3 * rjup)
 pscale = sscale * radii
 
 # color bar temperature tick values and labels
-ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250', '1500']
+ticks = np.array([1, 25, 50, 75, 100, 125])
+labs = ['1', '25', '50', '75', '100', '125']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -468,11 +471,11 @@ if addsolar:
 # to make it easier to read
 if legback:
     box1starts = {480: (0., 0.445), 720: (0., 0.46), 1080: (0., 0.47)}
-    box1widths = {480: 0.19, 720: 0.147, 1080: 0.153}
+    box1widths = {480: 0.19, 720: 0.147, 1080: 0.172}
     box1heights = {480: 0.555, 720: 0.54, 1080: 0.53}
 
-    box2starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.83, 0.84)}
-    box2widths = {480: 0.21, 720: 0.17, 1080: 0.17}
+    box2starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.86, 0.84)}
+    box2widths = {480: 0.21, 720: 0.17, 1080: 0.14}
     box2heights = {480: 0.2, 720: 0.16, 1080: 0.16}
 
     # create the rectangles at the right heights and widths
@@ -487,6 +490,7 @@ if legback:
     ax.add_artist(d)
 
 # appropriate spacing from the left edge for the color bar
+#cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
 cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
 cbxoff = cbxoffs[reso]
 
@@ -522,24 +526,29 @@ cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
                     left=False, right=False, length=5, labelleft=False,
                     labelright=True, zorder=5)
 # say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_ticks([255, 409, 730, 1200])
+cbar.ax.yaxis.set_ticks(np.array([5, 100, 200, 300, 400])/3.26156, minor=True)
 cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1, zorder=5)
-cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
+cbar.ax.set_yticklabels(['5', '100', '200', '300', '400'],
                         minor=True, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1)
-clab = 'Planet Equilibrium\nTemperature (K)'
+cbar.ax.yaxis.set_label('Parsec')
+#cbar.ax.yaxis.set_label('Light year', minor=True)
+
+clab = 'Distance\nFrom Earth'
 # add the overall label at the bottom of the color bar
 cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
-                   size=fsz1, zorder=5)
-
-# XXX: set color bar to 5-400 light years
+                   size=fsz1, zorder=5, labelpad=fsz1*1.5)
 
 # switch back to the main plot
 plt.sca(ax)
+plt.text(cbxoff + 0.01, 0.54 -0.03, 'Light-years', transform=ax.transAxes,color=fontcol,family=fontfam,
+                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='left')
+plt.text(cbxoff - 0.01, 0.54 - 0.03, 'Parsecs', transform=ax.transAxes,color=fontcol,family=fontfam,
+                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='right')
 
 # upper right credit and labels text offsets
-txtxoffs = {480: 0.2, 720: 0.16, 1080: 0.16}
+txtxoffs = {480: 0.01, 720: 0.01, 1080: 0.01}
 txtyoffs1 = {480: 0.10, 720: 0.08, 1080: 0.08}
 txtyoffs2 = {480: 0.18, 720: 0.144, 1080: 0.144}
 
@@ -549,13 +558,13 @@ txtyoff2 = txtyoffs2[reso]
 
 # put in the credits in the top right
 text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
+                time0.strftime('TESS Orrery I\n%d %b %Y'), color=fontcol,
                 family=fontfam, fontproperties=prop,
-                fontsize=fsz2, zorder=5, transform=ax.transAxes)
+                fontsize=fsz2, zorder=5, transform=ax.transAxes, horizontalalignment='right')
 plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
          color=fontcol, family=fontfam,
          fontproperties=prop, fontsize=fsz1,
-         zorder=5, transform=ax.transAxes)
+         zorder=5, transform=ax.transAxes, horizontalalignment='right')
 
 # the center of the figure
 x0 = np.mean(plt.xlim())
@@ -588,10 +597,10 @@ if makemovie:
         newt = time0 + dt.timedelta(time)
         # put in the credits in the top right
         text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                        newt.strftime('Kepler Orrery V\n%d %b %Y'),
+                        newt.strftime('TESS Orrery I\n%d %b %Y'),
                         color=fontcol, family=fontfam,
                         fontproperties=prop,
-                        fontsize=fsz2, zorder=5, transform=ax.transAxes)
+                        fontsize=fsz2, zorder=5, transform=ax.transAxes, horizontalalignment='right')
         # put the planets in the correct location
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
