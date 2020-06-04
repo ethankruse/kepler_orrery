@@ -30,8 +30,8 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = 0.
-ssy = 0.
+ssx = -8.6
+ssy = -3.7
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
 # 0 puts it first and near the center, 1 puts it last on the outside
@@ -71,7 +71,7 @@ legbackcol = bkcol
 legalpha = 0.7
 
 # are we making the png files for a movie or gif
-makemovie = False
+makemovie = True
 # resolution of the images. Currently support 480, 720 or 1080.
 reso = 1080
 
@@ -96,8 +96,8 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = 0, 0.2
-endx, endy = 0, 0.2
+startx, starty = 1.025, -1.96
+endx, endy = 1.025, -1.96
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -122,6 +122,10 @@ x0s[~np.isfinite(x0s)] = np.interp(inds[~np.isfinite(x0s)], inds[np.isfinite(x0s
 y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s)],
                               y0s[np.isfinite(y0s)])
 
+# AU = parsecs * dscale
+dscale = 1./26
+# radius where a distance of 0 would go
+zerodist = 0.
 # ===================================== #
 
 # reference time for the Kepler data
@@ -213,11 +217,13 @@ else:
     maxras = maxras[inds]
     maxdecs = maxdecs[inds]
     
+    useecl = False
     
-    icrs = SkyCoord(ra=maxras, dec=maxdecs, frame='icrs', unit='deg')
-    ecliptic = icrs.transform_to(BarycentricTrueEcliptic)
-    maxrasecl = ecliptic.lon.value * 1
-    maxdecsecl = ecliptic.lat.value * 1
+    if useecl:
+        icrs = SkyCoord(ra=maxras, dec=maxdecs, frame='icrs', unit='deg')
+        ecliptic = icrs.transform_to(BarycentricTrueEcliptic)
+        maxrasecl = ecliptic.lon.value * 1
+        maxdecsecl = ecliptic.lat.value * 1
     
     # add in the solar system if desired
     if addsolar:
@@ -233,12 +239,19 @@ else:
         maxsemis = np.insert(maxsemis, insind, 1.524)
         multikics = np.insert(multikics, insind, kicsolar)
         maxdists = np.insert(maxdists, insind, 0)
-        maxrasecl = np.insert(maxrasecl, insind, 0)
-        maxdecsecl = np.insert(maxdecsecl, insind, 0)
+        if useecl:
+            maxrasecl = np.insert(maxrasecl, insind, 0)
+            maxdecsecl = np.insert(maxdecsecl, insind, 0)
+        else:
+            maxras = np.insert(maxras, insind, 0)
+            maxdecs = np.insert(maxdecs, insind, 0)
     
-    
-    phase = maxdecsecl * 1
-    phase[maxrasecl > 180] = 180 - phase[maxrasecl > 180]
+    if useecl:
+        phase = maxdecsecl * 1
+        phase[maxrasecl > 180] = 180 - phase[maxrasecl > 180]
+    else:
+        phase = maxdecs * 1
+        phase[maxras > 180] = 180 - phase[maxras > 180]
     
     xcens = np.array([])
     ycens = np.array([])
@@ -247,10 +260,10 @@ else:
         # reset the counters
         repeat = True
         phaseoff = 0
-        # AU = parsecs * dscale
-        dscale = 1./50
-        # radius where a distance of 0 would go
-        zerodist = 2.1
+        ispace = spacing * 1
+        
+        #if maxdists[ii] < 50:
+        #    ispace = 0
     
         # progress bar
         if (ii % 20) == 0:
@@ -277,7 +290,7 @@ else:
             rsum = maxsemis + maxsemis[ii]
     
             # systems that overlap
-            bad = np.where(rdists < rsum[:ii + 1] + spacing)
+            bad = np.where(rdists < rsum[:ii + 1] + ispace)
     
             # either the systems overlap or we've placed a lot and
             # the aspect ratio isn't good enough so try again
@@ -285,14 +298,14 @@ else:
                 repeat = False
                 
             if phaseoff == 0:
-                phaseoff = 5
+                phaseoff = 2
             elif phaseoff > 0:
                 phaseoff *= -1
             else:
                 phaseoff *= -1
-                phaseoff += 5
+                phaseoff += 2
     
-            if phaseoff > 170:
+            if phaseoff > 180:
                 raise Exception('bad')
         #print(phaseoff)
 
@@ -332,27 +345,27 @@ incs = np.array([])
 for ii in np.arange(nplan):
     # known solar system parameters
     if addsolar and multikics[ii] == kicsolar:
-        usedkics = np.concatenate((usedkics, np.ones(8) * kicsolar))
+        usedkics = np.concatenate((usedkics, np.ones(4) * kicsolar))
         # always start the outer solar system in the same places
         # for optimial visibility
-        t0s = np.concatenate((t0s, [85., 192., 266., 180.,
-                                    times[0] + 0.1 * 4332.8,
-                                    times[0] - 22. / 360 * 10755.7,
-                                    times[0] - 30687 * 145. / 360,
-                                    times[0] - 60190 * 202. / 360]))
-        periods = np.concatenate((periods, [87.97, 224.70, 365.26, 686.98,
-                                            4332.8, 10755.7, 30687, 60190]))
-        semis = np.concatenate((semis, [0.387, 0.723, 1.0, 1.524, 5.203,
-                                        9.537, 19.19, 30.07]))
-        radii = np.concatenate((radii, [0.383, 0.95, 1.0, 0.53, 10.86, 9.00,
-                                        3.97, 3.86]))
-        dists = np.concatenate((dists, np.ones(8)*0.01))
-        fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
-        fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
-        incs = np.concatenate((incs, [6.68, 1.91, 1, 0.43, 0.037, 0.011,
-                                      0.0027, 0.0011]))
-        teqs = np.concatenate((teqs, [409, 299, 255, 206, 200,
-                                      200, 200, 200]))
+        t0s = np.concatenate((t0s, [85., 192., 266., 180.]))#,
+                                   # times[0] + 0.1 * 4332.8,
+                                   # times[0] - 22. / 360 * 10755.7,
+                                   # times[0] - 30687 * 145. / 360,
+                                   # times[0] - 60190 * 202. / 360]))
+        periods = np.concatenate((periods, [87.97, 224.70, 365.26, 686.98]))#,
+                                            #4332.8, 10755.7, 30687, 60190]))
+        semis = np.concatenate((semis, [0.387, 0.723, 1.0, 1.524]))#, 5.203,
+                                       # 9.537, 19.19, 30.07]))
+        radii = np.concatenate((radii, [0.383, 0.95, 1.0, 0.53]))#, 10.86, 9.00,
+                                        #3.97, 3.86]))
+        dists = np.concatenate((dists, np.ones(4)*0.01))
+        fullxcens = np.concatenate((fullxcens, np.zeros(4) + xcens[ii]))
+        fullycens = np.concatenate((fullycens, np.zeros(4) + ycens[ii]))
+        incs = np.concatenate((incs, [6.68, 1.91, 1, 0.43]))#, 0.037, 0.011,
+                                      #0.0027, 0.0011]))
+        teqs = np.concatenate((teqs, [409, 299, 255, 206]))#, 200,
+                                      #200, 200, 200]))
         continue
 
     fd = np.where(kics == multikics[ii])[0]
@@ -444,6 +457,57 @@ for ii in np.arange(len(t0s)):
                    alpha=orbitalpha, fill=False,
                    color=orbitcol, zorder=zo, ls=ls, lw=lw)
     fig.gca().add_artist(c)
+    
+    
+    
+    
+fsz1 = fszs1[reso]
+fsz2 = fszs2[reso]
+prop = fm.FontProperties(fname=fontfile)
+    
+# plot the distance markers
+pldists = [50, 250, 500, 750, 1000]
+txtangles = [270, 225, 220, 220, 220]
+for ii in np.arange(len(pldists)):
+    # solid, thinner lines for normal planets
+    ls = 'solid'
+    zo = -5
+    lw = sslws[reso]
+    
+    
+    idist = zerodist + (pldists[ii]/3.26156) * dscale
+
+    c = plt.Circle((0, 0), idist, clip_on=False,
+                   alpha=orbitalpha, fill=False,
+                   color='#888888', zorder=zo, ls=':', lw=lw)
+    fig.gca().add_artist(c)
+    
+    if ii == 2:
+        ang = txtangles[ii] * np.pi/180
+        #plt.text(idist * np.cos(ang), idist * np.sin(ang), 'Distance from the\nSolar System',
+        #         color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+        #         horizontalalignment='center', verticalalignment='center', rotation=txtangles[ii]-90)
+        
+        itxt = f'{pldists[ii]} light-years'
+    else:
+        ang = txtangles[ii] * np.pi/180
+        itxt = f'{pldists[ii]} ly'
+    
+    iang = txtangles[ii]-90
+    if iang > 90:
+        iang -= 180
+    
+    if ii == 0:
+        idist = 10 * dscale / 3.26156
+    else:
+        idist += 25 * dscale / 3.26156
+    plt.text(idist * np.cos(ang), idist * np.sin(ang), itxt,
+             color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+             horizontalalignment='center', verticalalignment='center', rotation=iang, zorder=-3)
+    
+    
+    
+    
 
 # set up the planet size scale
 sscales = {480: 12., 720: 30., 1080: 50.}
@@ -454,9 +518,9 @@ rnep = 3.856
 rjup = 10.864
 rmerc = 0.383
 # for the planet size legend
-solarsys = np.array([rmerc, rearth, rnep, rjup])
-pnames = ['Mercury', 'Earth', 'Neptune', 'Jupiter']
-csolar = np.array([0.01, 0.01, 0.01, 0.01])
+solarsys = np.array([rearth, rnep, rjup])[::-1]
+pnames = ['Earth', 'Neptune', 'Jupiter'][::-1]
+csolar = np.array([255, 46, 112])[::-1]
 
 # keep the smallest planets visible and the largest from being too huge
 solarsys = np.clip(solarsys, 0.8, 1.3 * rjup)
@@ -466,10 +530,8 @@ radii = np.clip(radii, 0.8, 1.3 * rjup)
 pscale = sscale * radii
 
 # color bar temperature tick values and labels
-ticks = np.array([1, 25, 50, 75, 100])
-labs = ['1', '25', '50', '75', '100']
-
-# XXX: eq temp = (incident flux)**0.25 * 255
+ticks = np.array([250, 500, 750, 1000, 1250])
+labs = ['250', '500', '750', '1000', '1250', '1500']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -482,26 +544,22 @@ mycmap = diverge_map(RGB1=RGB1, RGB2=RGB2, numColors=15)
 phase = 2. * np.pi * (0. - t0s) / periods
 tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                   fullycens + semis * np.sin(phase), marker='o',
-                  edgecolors='none', lw=0, s=pscale, c=incs, vmin=ticks.min(),
+                  edgecolors='none', lw=0, s=pscale, c=teqs, vmin=ticks.min(),
                   vmax=ticks.max(), zorder=3, cmap=mycmap, clip_on=False)
-
-fsz1 = fszs1[reso]
-fsz2 = fszs2[reso]
-prop = fm.FontProperties(fname=fontfile)
 
 # create the 'Solar System' text identification
 if addsolar:
     loc = np.where(usedkics == kicsolar)[0][0]
-    plt.text(fullxcens[loc], fullycens[loc], 'Solar\nSystem', zorder=-2,
+    plt.text(fullxcens[loc], fullycens[loc], 'Inner\nSolar\nSystem', zorder=-2,
              color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
              horizontalalignment='center', verticalalignment='center')
 
 # if we're putting in a translucent background behind the text
 # to make it easier to read
 if legback:
-    box1starts = {480: (0., 0.445), 720: (0., 0.46), 1080: (0., 0.47)}
-    box1widths = {480: 0.19, 720: 0.147, 1080: 0.172}
-    box1heights = {480: 0.555, 720: 0.54, 1080: 0.53}
+    box1starts = {480: (0., 0.445), 720: (0., 0.46), 1080: (0., 0.23)}
+    box1widths = {480: 0.19, 720: 0.147, 1080: 0.244}
+    box1heights = {480: 0.555, 720: 0.54, 1080: 0.77}
 
     box2starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.86, 0.84)}
     box2widths = {480: 0.21, 720: 0.17, 1080: 0.14}
@@ -510,71 +568,90 @@ if legback:
     # create the rectangles at the right heights and widths
     # based on the resolution
     c = plt.Rectangle(box1starts[reso], box1widths[reso], box1heights[reso],
-                      alpha=legalpha, fc=legbackcol, ec='none', zorder=4,
+                      alpha=legalpha, fc=legbackcol, ec='none', zorder=-4,
                       transform=ax.transAxes)
     d = plt.Rectangle(box2starts[reso], box2widths[reso], box2heights[reso],
-                      alpha=legalpha, fc=legbackcol, ec='none', zorder=4,
+                      alpha=legalpha, fc=legbackcol, ec='none', zorder=-4,
                       transform=ax.transAxes)
     ax.add_artist(c)
     ax.add_artist(d)
 
 # appropriate spacing from the left edge for the color bar
 #cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
-cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
+cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.09}
 cbxoff = cbxoffs[reso]
 
 # plot the solar system planet scale
 ax.scatter(np.zeros(len(solarscale)) + cbxoff,
-           1. - 0.13 + 0.03 * np.arange(len(solarscale)), s=solarscale,
+           1. - 0.47 + 0.03 * np.arange(len(solarscale)), s=solarscale,
            c=csolar, zorder=5, marker='o',
            edgecolors='none', lw=0, cmap=mycmap, vmin=ticks.min(),
            vmax=ticks.max(), clip_on=False, transform=ax.transAxes)
 
 # put in the text labels for the solar system planet scale
 for ii in np.arange(len(solarscale)):
-    ax.text(cbxoff + 0.01, 1. - 0.14 + 0.03 * ii,
+    ax.text(cbxoff - 0.01, 1. - 0.47 - 0.002 + 0.03 * ii,
             pnames[ii], color=fontcol, family=fontfam,
             fontproperties=prop, fontsize=fsz1, zorder=5,
-            transform=ax.transAxes)
+            transform=ax.transAxes, verticalalignment='center', horizontalalignment='right')
 
 # colorbar axis on the left centered with the planet scale
-ax2 = fig.add_axes([cbxoff - 0.005, 0.54, 0.01, 0.3])
+ax2 = fig.add_axes([cbxoff - 0.005, 0.62, 0.01, 0.3])
 ax2.set_zorder(2)
 cbar = plt.colorbar(tmp, cax=ax2, extend='both', ticks=ticks)
+ax3 = cbar.ax.twinx()
+ax3.set_ylim(cbar.ax.get_ylim())
 # remove the white/black outline around the color bar
 cbar.outline.set_linewidth(0)
 # allow two different tick scales
 cbar.ax.minorticks_on()
 # turn off tick lines and put the physical temperature scale on the left
 cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
-                    left=False, right=False, length=5, labelleft=True,
-                    labelright=False, zorder=5)
+                    left=False, right=False, length=5, labelleft=False,
+                    labelright=True, zorder=5)
 # turn off tick lines and put the physical temperature approximations
 # on the right
 cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
+                    left=False, right=False, length=5, labelleft=True,
+                    labelright=False, zorder=5)
+
+
+# add another layer of labels
+ax3.tick_params(axis='y', which='major', color=fontcol, width=2,
                     left=False, right=False, length=5, labelleft=False,
-                    labelright=True, zorder=5)
+                    labelright=True, zorder=5, pad=60)
+
+ax3.tick_params(axis='y', which='minor', color=fontcol, width=2,
+                    left=False, right=False, length=5, labelleft=False,
+                    labelright=False, zorder=5)
+ax3.yaxis.set_ticks([255, 409, 730, 1200])
+ax3.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
+                        color=fontcol, family=fontfam,
+                        fontproperties=prop, fontsize=fsz1)
+
+
+# eq temp = (incident flux)**0.25 * 255
 # say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_ticks(np.array([5, 100, 200, 300, 400])/3.26156, minor=True)
+cbar.ax.yaxis.set_ticks((np.array([1, 10, 100, 300, 500])**0.25)*255, minor=True)
 cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1, zorder=5)
-cbar.ax.set_yticklabels(['5', '100', '200', '300', '400'],
+cbar.ax.set_yticklabels(['1', '10', '100', '300', '500'],
                         minor=True, color=fontcol, family=fontfam,
                         fontproperties=prop, fontsize=fsz1)
-cbar.ax.yaxis.set_label('Parsec')
+#cbar.ax.yaxis.set_label('Insolation\n(Earths)')
 #cbar.ax.yaxis.set_label('Light year', minor=True)
 
-clab = 'Insolation\n(Earths)'
+clab = ''
 # add the overall label at the bottom of the color bar
 cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
                    size=fsz1, zorder=5, labelpad=fsz1*1.5)
 
 # switch back to the main plot
 plt.sca(ax)
-plt.text(cbxoff + 0.01, 0.54 -0.03, 'Light-years', transform=ax.transAxes,color=fontcol,family=fontfam,
-                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='left')
-plt.text(cbxoff - 0.01, 0.54 - 0.03, 'Parsecs', transform=ax.transAxes,color=fontcol,family=fontfam,
-                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='right')
+plt.text(cbxoff + 0.01, 0.92 + 0.01, 'Planet Equilibrium\nTemperature (K)', transform=ax.transAxes,color=fontcol,family=fontfam,
+                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='left', verticalalignment='bottom')
+plt.text(cbxoff - 0.01, 0.92 + 0.01, 'Insolation\n(Earths)', transform=ax.transAxes,color=fontcol,family=fontfam,
+                        fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='right', verticalalignment='bottom')
 
 # upper right credit and labels text offsets
 txtxoffs = {480: 0.01, 720: 0.01, 1080: 0.01}
@@ -602,6 +679,8 @@ y0 = np.mean(plt.ylim())
 # width of the figure
 xdiff = np.diff(plt.xlim()) / 2.
 ydiff = np.diff(plt.ylim()) / 2.
+
+
 
 # create the output directory if necessary
 if makemovie and not os.path.exists(outdir):
@@ -634,7 +713,7 @@ if makemovie:
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                           fullycens + semis * np.sin(phase),
-                          marker='o', edgecolors='none', lw=0, s=pscale, c=incs,
+                          marker='o', edgecolors='none', lw=0, s=pscale, c=teqs,
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
 
