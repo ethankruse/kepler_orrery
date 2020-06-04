@@ -6,6 +6,7 @@ import datetime as dt
 from diverging_map import diverge_map
 import matplotlib.font_manager as fm
 import pandas as pd
+from astropy.coordinates import SkyCoord, BarycentricTrueEcliptic
 
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
@@ -70,7 +71,7 @@ legbackcol = bkcol
 legalpha = 0.7
 
 # are we making the png files for a movie or gif
-makemovie = True
+makemovie = False
 # resolution of the images. Currently support 480, 720 or 1080.
 reso = 1080
 
@@ -139,9 +140,31 @@ radius = data['Planet Radius (R_Earth)'].values
 inc = data['Planet Insolation (Earth Flux)'].values
 srad = data['Stellar Radius (R_Sun)'].values
 stemp = data['Stellar Eff Temp (K)'].values
+iteqs = data['Planet Equil Temp (K)'].values
+tra = data['RA'].values
+tdec = data['Dec'].values
 slum = (srad**2) * ((stemp/5770)**4)
 semi = np.sqrt((slum / inc))
 
+ra = []
+dec = []
+for ii in np.arange(tra.size):
+    ira = tra[ii]
+    idec = tdec[ii]
+    
+    hh, mm, ss = ira.split(':')
+    frac = int(hh) + int(mm)/60 + float(ss)/3600
+    ra.append(frac * 360/24)
+    
+    hh, mm, ss = idec.split(':')
+    frac = int(hh)
+    if int(hh) < 0:
+        frac -= int(mm)/60 + float(ss)/3600
+    else:
+        frac += int(mm)/60 + float(ss)/3600
+    dec.append(frac)
+ra = np.array(ra)
+dec = np.array(dec)
 
 # load in the data from the KOI list
 #kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
@@ -149,7 +172,7 @@ semi = np.sqrt((slum / inc))
 
 # grab the KICs with known parameters
 good = (np.isfinite(semi) & np.isfinite(pds) & (pds > 0.) &
-        np.isfinite(radius) & np.isfinite(idists))
+        np.isfinite(radius) & np.isfinite(idists) & np.isfinite(inc) & np.isfinite(iteqs))
 
 kics = kics[good]
 pds = pds[good]
@@ -157,6 +180,8 @@ it0s = it0s[good]
 semi = semi[good]
 radius = radius[good]
 idists = idists[good]
+inc = inc[good]
+iteqs = iteqs[good]
 
 # if we've already decided where to put each system, load it up
 if lcenfile is not None:
@@ -169,34 +194,31 @@ else:
     multikics = multikics[nct > 1]
     maxsemis = multikics * 0.
     maxdists = multikics * 0.
+    maxdecs = multikics * 0.
+    maxras = multikics * 0.
     nplan = len(multikics)
 
     # the maximum size needed for each system
     for ii in np.arange(len(multikics)):
         maxsemis[ii] = np.max(semi[np.where(kics == multikics[ii])[0]])
         maxdists[ii] = np.max(idists[np.where(kics == multikics[ii])[0]])
+        maxras[ii] = np.max(ra[np.where(kics == multikics[ii])[0]])
+        maxdecs[ii] = np.max(dec[np.where(kics == multikics[ii])[0]])
 
-    # place the smallest ones first, but add noise
-    # so they aren't perfectly in order
     inds = np.argsort(maxdists)
-    
-    # place the smallest ones first, but add uniform noise
-    # so they aren't perfectly in order
-    #inds = np.argsort(maxsemis + np.random.uniform(low=-2, high=2, size=len(maxsemis)))[::-1]
-    
-    # purely random order
-    #np.random.shuffle(inds)
-    
-    # biggest ones first, small ones fill in
-    #bigs = np.where(maxsemis > 1.)[0]
-    #smalls = np.where(maxsemis <= 1.)[0]
-    #np.random.shuffle(smalls)
-    #inds = np.concatenate((bigs, smalls))
-
     # reorder to place them
     maxsemis = maxsemis[inds]
     multikics = multikics[inds]
-
+    maxdists = maxdists[inds]
+    maxras = maxras[inds]
+    maxdecs = maxdecs[inds]
+    
+    
+    icrs = SkyCoord(ra=maxras, dec=maxdecs, frame='icrs', unit='deg')
+    ecliptic = icrs.transform_to(BarycentricTrueEcliptic)
+    maxrasecl = ecliptic.lon.value * 1
+    maxdecsecl = ecliptic.lat.value * 1
+    
     # add in the solar system if desired
     if addsolar:
         nplan += 1
@@ -207,29 +229,33 @@ else:
         # and place it at this point through the list
         else:
             insind = int(posinlist * len(maxsemis))
-
+    
         maxsemis = np.insert(maxsemis, insind, 1.524)
         multikics = np.insert(multikics, insind, kicsolar)
-
-    # ratio = x extent / y extent
-    # what is the maximum and minimum aspect ratio of the final placement
-    maxratio = 19.5 / 9
-    minratio = 12. / 9
-
+        maxdists = np.insert(maxdists, insind, 0)
+        maxrasecl = np.insert(maxrasecl, insind, 0)
+        maxdecsecl = np.insert(maxdecsecl, insind, 0)
+    
+    
+    phase = maxdecsecl * 1
+    phase[maxrasecl > 180] = 180 - phase[maxrasecl > 180]
+    
     xcens = np.array([])
     ycens = np.array([])
     # place all the planets without overlapping or violating aspect ratio
     for ii in np.arange(nplan):
         # reset the counters
         repeat = True
-        r0 = rstart * 1.
-        ct = 0
-        ratio = 1.
-
+        phaseoff = 0
+        # AU = parsecs * dscale
+        dscale = 1./50
+        # radius where a distance of 0 would go
+        zerodist = 2.1
+    
         # progress bar
         if (ii % 20) == 0:
             print('Placing {0} of {1} planets'.format(ii, nplan))
-
+    
         # put the solar system at its fixed position if desired
         if multikics[ii] == kicsolar and fixedpos:
             xcens = np.concatenate((xcens, [ssx]))
@@ -238,44 +264,37 @@ else:
         else:
             xcens = np.concatenate((xcens, [0.]))
             ycens = np.concatenate((ycens, [0.]))
-
+    
         # repeat until we find an open location for this system
         while repeat:
-            # pick a random radius (up to our limit) and angle
-            r = np.random.rand() * r0
-            theta = np.random.rand() * 2. * np.pi
-            xcens[ii] = r * np.cos(theta)
-            ycens[ii] = r * np.sin(theta)
-
-            # check what the aspect ratio would be if we place it here
-            xex = (xcens + maxsemis[:ii + 1]).max() - \
-                  (xcens - maxsemis[:ii + 1]).min()
-            yex = (ycens + maxsemis[:ii + 1]).max() - \
-                  (ycens - maxsemis[:ii + 1]).min()
-            ratio = xex / yex
-
+            iphase = (phase[ii] + phaseoff) * np.pi/180
+            xcens[ii] = np.cos(iphase) * (maxdists[ii] * dscale + zerodist)
+            ycens[ii] = np.sin(iphase) * (maxdists[ii] * dscale + zerodist)
+    
             # how far apart are all systems
             rdists = np.sqrt((xcens - xcens[ii]) ** 2. +
                             (ycens - ycens[ii]) ** 2.)
             rsum = maxsemis + maxsemis[ii]
-
+    
             # systems that overlap
             bad = np.where(rdists < rsum[:ii + 1] + spacing)
-
+    
             # either the systems overlap or we've placed a lot and
             # the aspect ratio isn't good enough so try again
-            if len(bad[0]) == 1 and (
-                        (minratio <= ratio <= maxratio) or ii < 50):
+            if len(bad[0]) == 1:
                 repeat = False
-
-            # if we've been trying to place this system but can't get it
-            # at this radius, expand the search zone
-            if ct > maxtry:
-                ct = 0
-                # add equal area every time
-                r0 = np.sqrt(rstart ** 2. + r0 ** 2.)
-
-            ct += 1
+                
+            if phaseoff == 0:
+                phaseoff = 5
+            elif phaseoff > 0:
+                phaseoff *= -1
+            else:
+                phaseoff *= -1
+                phaseoff += 5
+    
+            if phaseoff > 170:
+                raise Exception('bad')
+        #print(phaseoff)
 
     # save this placement distribution if desired
     if scenfile is not None:
@@ -303,11 +322,12 @@ t0s = np.array([])
 periods = np.array([])
 semis = np.array([])
 radii = np.array([])
-# teqs = np.array([])
+teqs = np.array([])
 dists = np.array([])
 usedkics = np.array([])
 fullxcens = np.array([])
 fullycens = np.array([])
+incs = np.array([])
 
 for ii in np.arange(nplan):
     # known solar system parameters
@@ -329,6 +349,10 @@ for ii in np.arange(nplan):
         dists = np.concatenate((dists, np.ones(8)*0.01))
         fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
         fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
+        incs = np.concatenate((incs, [6.68, 1.91, 1, 0.43, 0.037, 0.011,
+                                      0.0027, 0.0011]))
+        teqs = np.concatenate((teqs, [409, 299, 255, 206, 200,
+                                      200, 200, 200]))
         continue
 
     fd = np.where(kics == multikics[ii])[0]
@@ -338,10 +362,12 @@ for ii in np.arange(nplan):
     periods = np.concatenate((periods, pds[fd]))
     semis = np.concatenate((semis, semi[fd]))
     radii = np.concatenate((radii, radius[fd]))
-    # teqs = np.concatenate((teqs, iteqs[fd]))
+    incs = np.concatenate((incs, inc[fd]))
+    teqs = np.concatenate((teqs, iteqs[fd]))
     dists = np.concatenate((dists, idists[fd]))
     fullxcens = np.concatenate((fullxcens, np.zeros(len(fd)) + xcens[ii]))
     fullycens = np.concatenate((fullycens, np.zeros(len(fd)) + ycens[ii]))
+    
 
 # sort by radius so that the large planets are on the bottom and
 # don't cover smaller planets
@@ -351,7 +377,8 @@ t0s = t0s[rs]
 periods = periods[rs]
 semis = semis[rs]
 radii = radii[rs]
-#teqs = teqs[rs]
+incs = incs[rs]
+teqs = teqs[rs]
 dists = dists[rs]
 fullxcens = fullxcens[rs]
 fullycens = fullycens[rs]
@@ -439,8 +466,10 @@ radii = np.clip(radii, 0.8, 1.3 * rjup)
 pscale = sscale * radii
 
 # color bar temperature tick values and labels
-ticks = np.array([1, 25, 50, 75, 100, 125])
-labs = ['1', '25', '50', '75', '100', '125']
+ticks = np.array([1, 25, 50, 75, 100])
+labs = ['1', '25', '50', '75', '100']
+
+# XXX: eq temp = (incident flux)**0.25 * 255
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -453,7 +482,7 @@ mycmap = diverge_map(RGB1=RGB1, RGB2=RGB2, numColors=15)
 phase = 2. * np.pi * (0. - t0s) / periods
 tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                   fullycens + semis * np.sin(phase), marker='o',
-                  edgecolors='none', lw=0, s=pscale, c=dists, vmin=ticks.min(),
+                  edgecolors='none', lw=0, s=pscale, c=incs, vmin=ticks.min(),
                   vmax=ticks.max(), zorder=3, cmap=mycmap, clip_on=False)
 
 fsz1 = fszs1[reso]
@@ -535,7 +564,7 @@ cbar.ax.set_yticklabels(['5', '100', '200', '300', '400'],
 cbar.ax.yaxis.set_label('Parsec')
 #cbar.ax.yaxis.set_label('Light year', minor=True)
 
-clab = 'Distance\nFrom Earth'
+clab = 'Insolation\n(Earths)'
 # add the overall label at the bottom of the color bar
 cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
                    size=fsz1, zorder=5, labelpad=fsz1*1.5)
@@ -605,7 +634,7 @@ if makemovie:
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
                           fullycens + semis * np.sin(phase),
-                          marker='o', edgecolors='none', lw=0, s=pscale, c=dists,
+                          marker='o', edgecolors='none', lw=0, s=pscale, c=incs,
                           vmin=ticks.min(), vmax=ticks.max(),
                           zorder=3, cmap=mycmap, clip_on=False)
 
@@ -613,3 +642,11 @@ if makemovie:
                     facecolor=fig.get_facecolor(), edgecolor='none')
         if not (ii % 10):
             print('{0} of {1} frames'.format(ii, len(times)))
+
+
+
+
+
+
+
+
