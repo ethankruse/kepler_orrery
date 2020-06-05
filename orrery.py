@@ -506,8 +506,6 @@ for ii in np.arange(len(pldists)):
              horizontalalignment='center', verticalalignment='center', rotation=iang, zorder=-3)
     
     
-    
-    
 
 # set up the planet size scale
 sscales = {480: 12., 720: 30., 1080: 50.}
@@ -681,6 +679,20 @@ xdiff = np.diff(plt.xlim()) / 2.
 ydiff = np.diff(plt.ylim()) / 2.
 
 
+# add hemisphere text
+
+xl = plt.xlim()
+
+plt.text(xl[-1]+0.022*xdiff, 0.1, 'Northern Hemisphere',
+     color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+     horizontalalignment='right', verticalalignment='bottom', zorder=-3)
+
+plt.text(xl[-1]+0.022*xdiff, -0.1, 'Southern Hemisphere',
+     color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+     horizontalalignment='right', verticalalignment='top', zorder=-3)
+
+plt.plot([8, xl[-1]+1], [0,0], lw=3, c=fontcol)
+plt.xlim(xl)
 
 # create the output directory if necessary
 if makemovie and not os.path.exists(outdir):
