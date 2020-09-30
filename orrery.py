@@ -30,8 +30,8 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = -8.6
-ssy = -3.7
+ssx = -10.5
+ssy = -3.
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
 # 0 puts it first and near the center, 1 puts it last on the outside
@@ -96,8 +96,8 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = 1.025, -1.96
-endx, endy = 1.025, -1.96
+startx, starty = -1.7613, -1.1504
+endx, endy = -1.7613, -1.1504
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -125,7 +125,7 @@ y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s
 # AU = parsecs * dscale
 dscale = 1./26
 # radius where a distance of 0 would go
-zerodist = 0.
+zerodist = 0.2
 # ===================================== #
 
 # reference time for the Kepler data
@@ -136,6 +136,19 @@ time0 = dt.datetime(2014, 12, 8, 12)
 kicsolar = -5
 
 data = pd.read_csv(koilist)
+
+# things that don't have a disposition get PC
+data.rename(columns={'TFOPWG Disposition': 'disposition'}, inplace=True)
+data['disposition'].replace(np.nan, 'PC', inplace=True)
+# change this to the status we want to report
+data['disposition'].replace('PC', 'Candidate', inplace=True)
+data['disposition'].replace('KP', 'Confirmed', inplace=True)
+data['disposition'].replace('CP', 'Confirmed', inplace=True)
+data['disposition'].replace('APC', 'Candidate', inplace=True)
+data['disposition'].replace('FA', 'False Positive', inplace=True)
+data['disposition'].replace('FP', 'False Positive', inplace=True)
+assert np.unique(data['disposition']).size == 3
+
 kics = data['TIC ID'].values
 pds = data['Period (days)'].values
 it0s = data['Epoch (BJD)'].values
@@ -174,9 +187,39 @@ dec = np.array(dec)
 #kics, pds, it0s, radius, iteqs, semi = np.genfromtxt(
 #    koilist, unpack=True, usecols=(1, 5, 8, 20, 26, 23), delimiter=',')
 
-# grab the KICs with known parameters
+# grab non-FPs
+good = data['disposition'] != 'False Positive'
+multikics, nct = np.unique(kics[good], return_counts=True)
+multikics = multikics[nct > 1]
+
+for ikic in multikics:
+    srch = np.where(kics == ikic)[0]
+    for isrch in srch:
+        good = (np.isfinite(semi[isrch]) & np.isfinite(pds[isrch]) & (pds[isrch] > 0.) &
+                np.isfinite(radius[isrch]) & np.isfinite(idists[isrch]) & np.isfinite(inc[isrch]) & np.isfinite(iteqs[isrch]))
+        if not good:
+            if ikic in [55652896, 120896927, 254113311, 260647166, 269701147, 278683844, 279741379, 425997655]:
+                if ikic == 269701147:
+                    pds[isrch] = 38.3561
+                if ikic == 279741379:
+                    pds[isrch] = 35.6125
+                oth = srch[srch != isrch][0]
+                tmpmass = (semi[oth]**3) / ((pds[oth] / 365.256)**2)
+                tmpau = (((pds[isrch] / 365.256)**2) * tmpmass)**(1./3.)
+                semi[isrch] = tmpau
+                inc[isrch] = slum[isrch] * (tmpau**-2)
+                iteqs[isrch] = (inc[isrch]**0.25)*255
+            
+        good = (np.isfinite(semi[isrch]) & np.isfinite(pds[isrch]) & (pds[isrch] > 0.) &
+                np.isfinite(radius[isrch]) & np.isfinite(idists[isrch]) & np.isfinite(inc[isrch]) & np.isfinite(iteqs[isrch]))
+        if ikic not in [207425167, 328933398, 347332255]:
+            assert good
+
+
+# grab the KICs with known parameters and not false positives
 good = (np.isfinite(semi) & np.isfinite(pds) & (pds > 0.) &
-        np.isfinite(radius) & np.isfinite(idists) & np.isfinite(inc) & np.isfinite(iteqs))
+        np.isfinite(radius) & np.isfinite(idists) & np.isfinite(inc) & np.isfinite(iteqs) & 
+        (data['disposition'] != 'False Positive'))
 
 kics = kics[good]
 pds = pds[good]
@@ -252,6 +295,13 @@ else:
     else:
         phase = maxdecs * 1
         phase[maxras > 180] = 180 - phase[maxras > 180]
+    
+    # XXX: special cases
+    phase[multikics==288636342] = 210
+    phase[multikics==230387153] = 147
+    phase[multikics==259172391] = -50
+    phase[multikics==233617847] = -45
+    phase[multikics==149302744] = -8
     
     xcens = np.array([])
     ycens = np.array([])
@@ -467,7 +517,7 @@ prop = fm.FontProperties(fname=fontfile)
     
 # plot the distance markers
 pldists = [50, 250, 500, 750, 1000]
-txtangles = [270, 225, 220, 220, 220]
+txtangles = [270, 235, 220, 215, 210]
 for ii in np.arange(len(pldists)):
     # solid, thinner lines for normal planets
     ls = 'solid'
@@ -482,7 +532,7 @@ for ii in np.arange(len(pldists)):
                    color='#888888', zorder=zo, ls=':', lw=lw)
     fig.gca().add_artist(c)
     
-    if ii == 2:
+    if ii == 1:
         ang = txtangles[ii] * np.pi/180
         #plt.text(idist * np.cos(ang), idist * np.sin(ang), 'Distance from the\nSolar System',
         #         color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
@@ -500,9 +550,9 @@ for ii in np.arange(len(pldists)):
     if ii == 0:
         idist = 10 * dscale / 3.26156
     else:
-        idist += 25 * dscale / 3.26156
+        idist += 30 * dscale / 3.26156
     plt.text(idist * np.cos(ang), idist * np.sin(ang), itxt,
-             color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+             color=fontcol, fontproperties=prop, fontsize=fsz1,
              horizontalalignment='center', verticalalignment='center', rotation=iang, zorder=-3)
     
     
@@ -529,7 +579,7 @@ pscale = sscale * radii
 
 # color bar temperature tick values and labels
 ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250', '1500']
+labs = ['250', '500', '750', '1000', '1250']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -549,7 +599,7 @@ tmp = plt.scatter(fullxcens + semis * np.cos(phase),
 if addsolar:
     loc = np.where(usedkics == kicsolar)[0][0]
     plt.text(fullxcens[loc], fullycens[loc], 'Inner\nSolar\nSystem', zorder=-2,
-             color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+             color=fontcol, fontproperties=prop, fontsize=fsz1,
              horizontalalignment='center', verticalalignment='center')
 
 # if we're putting in a translucent background behind the text
@@ -589,7 +639,7 @@ ax.scatter(np.zeros(len(solarscale)) + cbxoff,
 # put in the text labels for the solar system planet scale
 for ii in np.arange(len(solarscale)):
     ax.text(cbxoff - 0.01, 1. - 0.47 - 0.002 + 0.03 * ii,
-            pnames[ii], color=fontcol, family=fontfam,
+            pnames[ii], color=fontcol, 
             fontproperties=prop, fontsize=fsz1, zorder=5,
             transform=ax.transAxes, verticalalignment='center', horizontalalignment='right')
 
@@ -624,31 +674,36 @@ ax3.tick_params(axis='y', which='minor', color=fontcol, width=2,
                     labelright=False, zorder=5)
 ax3.yaxis.set_ticks([255, 409, 730, 1200])
 ax3.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
-                        color=fontcol, family=fontfam,
+                        color=fontcol, 
                         fontproperties=prop, fontsize=fsz1)
-
+for label in ax3.get_yticklabels(which='both'):
+    label.set_fontproperties(prop)
+    label.set_fontsize(fsz1)
 
 # eq temp = (incident flux)**0.25 * 255
 # say where to put the physical temperature approximations and give them labels
 cbar.ax.yaxis.set_ticks((np.array([1, 10, 100, 300, 500])**0.25)*255, minor=True)
-cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
+cbar.ax.set_yticklabels(labs, color=fontcol, 
                         fontproperties=prop, fontsize=fsz1, zorder=5)
 cbar.ax.set_yticklabels(['1', '10', '100', '300', '500'],
-                        minor=True, color=fontcol, family=fontfam,
+                        minor=True, color=fontcol, 
                         fontproperties=prop, fontsize=fsz1)
+for label in cbar.ax.get_yticklabels(which='both'):
+    label.set_fontproperties(prop)
+    label.set_fontsize(fsz1)
 #cbar.ax.yaxis.set_label('Insolation\n(Earths)')
 #cbar.ax.yaxis.set_label('Light year', minor=True)
 
 clab = ''
 # add the overall label at the bottom of the color bar
-cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
+cbar.ax.set_xlabel(clab, color=fontcol, fontproperties=prop,
                    size=fsz1, zorder=5, labelpad=fsz1*1.5)
 
 # switch back to the main plot
 plt.sca(ax)
-plt.text(cbxoff + 0.01, 0.92 + 0.01, 'Planet Equilibrium\nTemperature (K)', transform=ax.transAxes,color=fontcol,family=fontfam,
+plt.text(cbxoff + 0.01, 0.92 + 0.01, 'Planet Equilibrium\nTemperature (K)', transform=ax.transAxes,color=fontcol,
                         fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='left', verticalalignment='bottom')
-plt.text(cbxoff - 0.01, 0.92 + 0.01, 'Insolation\n(Earths)', transform=ax.transAxes,color=fontcol,family=fontfam,
+plt.text(cbxoff - 0.01, 0.92 + 0.01, 'Insolation\n(Earths)', transform=ax.transAxes,color=fontcol,
                         fontproperties=prop, fontsize=fsz1, zorder=5,horizontalalignment='right', verticalalignment='bottom')
 
 # upper right credit and labels text offsets
@@ -663,10 +718,10 @@ txtyoff2 = txtyoffs2[reso]
 # put in the credits in the top right
 text = plt.text(1. - txtxoff, 1. - txtyoff1,
                 time0.strftime('TESS Orrery I\n%d %b %Y'), color=fontcol,
-                family=fontfam, fontproperties=prop,
+                fontproperties=prop,
                 fontsize=fsz2, zorder=5, transform=ax.transAxes, horizontalalignment='right')
 plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
-         color=fontcol, family=fontfam,
+         color=fontcol, 
          fontproperties=prop, fontsize=fsz1,
          zorder=5, transform=ax.transAxes, horizontalalignment='right')
 
@@ -681,18 +736,22 @@ ydiff = np.diff(plt.ylim()) / 2.
 
 # add hemisphere text
 
-xl = plt.xlim()
+#xl = plt.xlim()
 
-plt.text(xl[-1]+0.022*xdiff, 0.1, 'Northern Hemisphere',
-     color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
-     horizontalalignment='right', verticalalignment='bottom', zorder=-3)
+orig = (0 - plt.ylim()[0])/np.diff(plt.ylim())
 
-plt.text(xl[-1]+0.022*xdiff, -0.1, 'Southern Hemisphere',
-     color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
-     horizontalalignment='right', verticalalignment='top', zorder=-3)
+plt.text(0.995, orig + 0.01, 'Northern Hemisphere',
+     color=fontcol, fontproperties=prop, fontsize=fsz1,
+     horizontalalignment='right', verticalalignment='bottom', zorder=-3,
+     transform=ax.transAxes)
 
-plt.plot([8, xl[-1]+1], [0,0], lw=3, c=fontcol)
-plt.xlim(xl)
+plt.text(0.995, orig - 0.01, 'Southern Hemisphere',
+     color=fontcol, fontproperties=prop, fontsize=fsz1,
+     horizontalalignment='right', verticalalignment='top', zorder=-3,
+     transform=ax.transAxes)
+
+plt.plot([0.83, 1], [orig,orig], lw=3, c=fontcol, transform=ax.transAxes)
+#plt.xlim(xl)
 
 # create the output directory if necessary
 if makemovie and not os.path.exists(outdir):
@@ -718,7 +777,7 @@ if makemovie:
         # put in the credits in the top right
         text = plt.text(1. - txtxoff, 1. - txtyoff1,
                         newt.strftime('TESS Orrery I\n%d %b %Y'),
-                        color=fontcol, family=fontfam,
+                        color=fontcol, 
                         fontproperties=prop,
                         fontsize=fsz2, zorder=5, transform=ax.transAxes, horizontalalignment='right')
         # put the planets in the correct location
