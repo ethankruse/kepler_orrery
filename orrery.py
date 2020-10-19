@@ -8,6 +8,8 @@ import matplotlib.font_manager as fm
 import pandas as pd
 from astropy.coordinates import SkyCoord, BarycentricTrueEcliptic
 
+from curved_text import CurvedText
+
 # what KOI file to use
 cd = os.path.abspath(os.path.dirname(__file__))
 #koilist = os.path.join(cd, 'KOI_List.txt')
@@ -30,8 +32,8 @@ addsolar = True
 fixedpos = True
 # fixed x and y positions (in AU) to place the Solar System
 # if addsolar and fixedpos are True
-ssx = -10.5
-ssy = -3.
+ssx = -10.55
+ssy = -1.5
 # fraction of the way through the planet list to treat the solar system
 # if fixedpos is False.
 # 0 puts it first and near the center, 1 puts it last on the outside
@@ -46,7 +48,7 @@ rstart = 0.5
 # before expanding the circle
 maxtry = 50
 # minimum spacing between systems (AU)
-spacing = 0.4
+spacing = 0.15
 
 # which font to use for the text
 fontfile = os.path.join(cd, 'Avenir-Black.otf')
@@ -82,13 +84,13 @@ outdir = os.path.join(cd, 'tess-movie/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
-# nframes = 40 * 20
-nframes = 35 * 30
+#nframes = 15 * 20
+nframes = 40 * 30
 
 # times to evaluate the planets at
 # Kepler observed from 120.5 to 1591
 tstep = 0.2
-times = np.arange(1325, 1325 + nframes*tstep, tstep)
+times = np.arange(1795, 1795 + nframes*tstep, tstep)
 
 # setup for the custom zoom levels
 inds = np.arange(len(times))
@@ -96,8 +98,8 @@ nmax = inds[-1]
 zooms = np.zeros_like(times) - 1.
 x0s = np.zeros_like(times) + np.nan
 y0s = np.zeros_like(times) + np.nan
-startx, starty = -1.7613, -1.1504
-endx, endy = -1.7613, -1.1504
+startx, starty = 0, 0
+endx, endy = 0, 0
 # what zoom level each frame is at (1. means default with everything)
 
 """
@@ -209,10 +211,12 @@ for ikic in multikics:
                 semi[isrch] = tmpau
                 inc[isrch] = slum[isrch] * (tmpau**-2)
                 iteqs[isrch] = (inc[isrch]**0.25)*255
+            if ikic in [31852980]:
+                idists[isrch] = 140
             
         good = (np.isfinite(semi[isrch]) & np.isfinite(pds[isrch]) & (pds[isrch] > 0.) &
                 np.isfinite(radius[isrch]) & np.isfinite(idists[isrch]) & np.isfinite(inc[isrch]) & np.isfinite(iteqs[isrch]))
-        if ikic not in [207425167, 328933398, 347332255]:
+        if ikic not in [207425167, 328933398, 347332255, 420645189]:
             assert good
 
 
@@ -297,11 +301,14 @@ else:
         phase[maxras > 180] = 180 - phase[maxras > 180]
     
     # XXX: special cases
+    # the two tan planets in the bottom left
     phase[multikics==288636342] = 210
-    phase[multikics==230387153] = 147
-    phase[multikics==259172391] = -50
-    phase[multikics==233617847] = -45
-    phase[multikics==149302744] = -8
+    # the two planets in the top right
+    phase[multikics==280031353] = 50
+    # the red, big planets near the 750 ly text
+    phase[multikics==309257814] = 215
+    # to avoid overlap with 50 ly text
+    phase[multikics==307210830] = 195
     
     xcens = np.array([])
     ycens = np.array([])
@@ -517,7 +524,7 @@ prop = fm.FontProperties(fname=fontfile)
     
 # plot the distance markers
 pldists = [50, 250, 500, 750, 1000]
-txtangles = [270, 235, 220, 215, 210]
+txtangles = [270, 215, 210, 210, 207]
 for ii in np.arange(len(pldists)):
     # solid, thinner lines for normal planets
     ls = 'solid'
@@ -548,12 +555,19 @@ for ii in np.arange(len(pldists)):
         iang -= 180
     
     if ii == 0:
-        idist = 10 * dscale / 3.26156
+        idist = 37 * dscale / 3.26156
+        plt.text(idist * np.cos(ang), idist * np.sin(ang), itxt,
+         color=fontcol, fontproperties=prop, fontsize=fsz1,
+         horizontalalignment='center', verticalalignment='center', rotation=iang, zorder=-3)
     else:
-        idist += 30 * dscale / 3.26156
-    plt.text(idist * np.cos(ang), idist * np.sin(ang), itxt,
-             color=fontcol, fontproperties=prop, fontsize=fsz1,
-             horizontalalignment='center', verticalalignment='center', rotation=iang, zorder=-3)
+        idist += 10 * dscale / 3.26156    
+        # make the text curve as well    
+        xa = idist * np.cos(np.linspace(ang, ang + 2*np.pi, 500))
+        ya = idist * np.sin(np.linspace(ang, ang + 2*np.pi, 500))
+        
+        text = CurvedText(x=xa, y=ya, text=itxt, va='top',
+                          axes=plt.gca(), color=fontcol, fontproperties=prop,
+                          fontsize=fsz1)
     
     
 
@@ -598,20 +612,24 @@ tmp = plt.scatter(fullxcens + semis * np.cos(phase),
 # create the 'Solar System' text identification
 if addsolar:
     loc = np.where(usedkics == kicsolar)[0][0]
-    plt.text(fullxcens[loc], fullycens[loc], 'Inner\nSolar\nSystem', zorder=-2,
+    plt.text(fullxcens[loc], fullycens[loc] - 1.65, 'Inner Solar System', zorder=-2,
              color=fontcol, fontproperties=prop, fontsize=fsz1,
-             horizontalalignment='center', verticalalignment='center')
+             horizontalalignment='center', verticalalignment='top')
 
 # if we're putting in a translucent background behind the text
 # to make it easier to read
 if legback:
-    box1starts = {480: (0., 0.445), 720: (0., 0.46), 1080: (0., 0.23)}
+    box1starts = {480: (0., 0.445), 720: (0., 0.46), 1080: (0., 0.25)}
     box1widths = {480: 0.19, 720: 0.147, 1080: 0.244}
-    box1heights = {480: 0.555, 720: 0.54, 1080: 0.77}
+    box1heights = {480: 0.555, 720: 0.54, 1080: 0.75}
 
     box2starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.86, 0.84)}
     box2widths = {480: 0.21, 720: 0.17, 1080: 0.14}
     box2heights = {480: 0.2, 720: 0.16, 1080: 0.16}
+    
+    box3starts = {480: (0.79, 0.8), 720: (0.83, 0.84), 1080: (0.82, 0.45)}
+    box3widths = {480: 0.21, 720: 0.17, 1080: 0.18}
+    box3heights = {480: 0.2, 720: 0.16, 1080: 0.1}
 
     # create the rectangles at the right heights and widths
     # based on the resolution
@@ -621,8 +639,12 @@ if legback:
     d = plt.Rectangle(box2starts[reso], box2widths[reso], box2heights[reso],
                       alpha=legalpha, fc=legbackcol, ec='none', zorder=-4,
                       transform=ax.transAxes)
+    e = plt.Rectangle(box3starts[reso], box3widths[reso], box3heights[reso],
+                      alpha=legalpha, fc=legbackcol, ec='none', zorder=-4,
+                      transform=ax.transAxes)
     ax.add_artist(c)
     ax.add_artist(d)
+    ax.add_artist(e)
 
 # appropriate spacing from the left edge for the color bar
 #cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
