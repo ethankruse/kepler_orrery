@@ -592,8 +592,8 @@ radii = np.clip(radii, 0.8, 1.3 * rjup)
 pscale = sscale * radii
 
 # color bar temperature tick values and labels
-ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250']
+ticks = np.array([250, 500, 750, 1000])
+labs = ['250', '500', '750', '1000']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -694,8 +694,8 @@ ax3.tick_params(axis='y', which='major', color=fontcol, width=2,
 ax3.tick_params(axis='y', which='minor', color=fontcol, width=2,
                     left=False, right=False, length=5, labelleft=False,
                     labelright=False, zorder=5)
-ax3.yaxis.set_ticks([255, 409, 730, 1200])
-ax3.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
+ax3.yaxis.set_ticks([255, 409, 730])
+ax3.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus'],
                         color=fontcol, 
                         fontproperties=prop, fontsize=fsz1)
 for label in ax3.get_yticklabels(which='both'):
@@ -704,10 +704,10 @@ for label in ax3.get_yticklabels(which='both'):
 
 # eq temp = (incident flux)**0.25 * 255
 # say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_ticks((np.array([1, 10, 100, 300, 500])**0.25)*255, minor=True)
+cbar.ax.yaxis.set_ticks((np.array([1, 10, 50, 100, 200])**0.25)*255, minor=True)
 cbar.ax.set_yticklabels(labs, color=fontcol, 
                         fontproperties=prop, fontsize=fsz1, zorder=5)
-cbar.ax.set_yticklabels(['1', '10', '100', '300', '500'],
+cbar.ax.set_yticklabels(['1', '10', '50', '100', '200'],
                         minor=True, color=fontcol, 
                         fontproperties=prop, fontsize=fsz1)
 for label in cbar.ax.get_yticklabels(which='both'):
