@@ -52,6 +52,18 @@ class ColorMapCreator:
 
     def __init__(self, RGB1, RGB2, numColors = 33., divide = 255.,
                   method = "moreland", filename = ""):
+        """
+        Initialize rgb colors.
+
+        Args:
+            self: (todo): write your description
+            RGB1: (float): write your description
+            RGB2: (float): write your description
+            numColors: (int): write your description
+            divide: (todo): write your description
+            method: (str): write your description
+            filename: (str): write your description
+        """
 
         # create a class variable for the number of colors
         self.numColors = numColors
@@ -148,6 +160,12 @@ class ColorMapCreator:
 
         # helper function
         def f(x):
+            """
+            Return f ( x )
+
+            Args:
+                x: (int): write your description
+            """
             limit = 0.008856
             if x> limit:
                 return np.power(x, 1./3.)
@@ -171,6 +189,12 @@ class ColorMapCreator:
 
         # helper function
         def finverse(x):
+            """
+            Finverse transform.
+
+            Args:
+                x: (int): write your description
+            """
             xlim = 0.008856
             a = 7.787
             b = 16./116.
@@ -342,6 +366,18 @@ class ColorMapCreator:
 # colormap
 def diverge_map(RGB1=np.array([59, 76, 192]), RGB2=np.array([180, 4, 38]),
                 numColors=101):
+    """
+    Diverge a 2d colormap.
+
+    Args:
+        RGB1: (todo): write your description
+        np: (todo): write your description
+        array: (array): write your description
+        RGB2: (todo): write your description
+        np: (todo): write your description
+        array: (array): write your description
+        numColors: (int): write your description
+    """
     # create a new instance of the ColorMapCreator-class using the desired
     # options
     colormap = ColorMapCreator(RGB1, RGB2, numColors=numColors)
