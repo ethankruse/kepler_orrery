@@ -418,7 +418,7 @@ pscale = sscale * radii
 
 # color bar temperature tick values and labels
 ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250', '1500']
+labs = ['250', '500', '750', '1000', '1250']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
