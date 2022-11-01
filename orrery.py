@@ -74,7 +74,7 @@ reso = 1080
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
 #outdir = os.path.join(cd, 'orrery-40s/')
-outdir = os.path.join(cd, 'movie/')
+outdir = os.path.join(cd, 'nocredit/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
@@ -291,24 +291,27 @@ fullycens = np.array([])
 for ii in np.arange(nplan):
     # known solar system parameters
     if addsolar and multikics[ii] == kicsolar:
-        usedkics = np.concatenate((usedkics, np.ones(8) * kicsolar))
+        usedkics = np.concatenate((usedkics, np.ones(9) * kicsolar))
         # always start the outer solar system in the same places
         # for optimial visibility
         t0s = np.concatenate((t0s, [85., 192., 266., 180.,
                                     times[0] - 3. * 4332.8 / 4,
                                     times[0] - 22. / 360 * 10755.7,
                                     times[0] - 30687 * 145. / 360,
-                                    times[0] - 60190 * 202. / 360]))
+                                    times[0] - 60190 * 202. / 360,
+                                    times[0] + 999]
+                                    ))
         periods = np.concatenate((periods, [87.97, 224.70, 365.26, 686.98,
-                                            4332.8, 10755.7, 30687, 60190]))
+                                            4332.8, 10755.7, 30687, 60190.,
+                                            1681.46]))
         semis = np.concatenate((semis, [0.387, 0.723, 1.0, 1.524, 5.203,
-                                        9.537, 19.19, 30.07]))
+                                        9.537, 19.19, 30.07, 2.77]))
         radii = np.concatenate((radii, [0.383, 0.95, 1.0, 0.53, 10.86, 9.00,
-                                        3.97, 3.86]))
+                                        3.97, 3.86, 0.074]))
         teqs = np.concatenate((teqs, [409, 299, 255, 206, 200,
-                                      200, 200, 200]))
-        fullxcens = np.concatenate((fullxcens, np.zeros(8) + xcens[ii]))
-        fullycens = np.concatenate((fullycens, np.zeros(8) + ycens[ii]))
+                                      200, 200, 200, 200]))
+        fullxcens = np.concatenate((fullxcens, np.zeros(9) + xcens[ii]))
+        fullycens = np.concatenate((fullycens, np.zeros(9) + ycens[ii]))
         continue
 
     fd = np.where(kics == multikics[ii])[0]
@@ -418,7 +421,7 @@ pscale = sscale * radii
 
 # color bar temperature tick values and labels
 ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250', '1500']
+labs = ['250', '500', '750', '1000', '1250']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -465,7 +468,7 @@ if legback:
                       alpha=legalpha, fc=legbackcol, ec='none', zorder=4,
                       transform=ax.transAxes)
     ax.add_artist(c)
-    ax.add_artist(d)
+    # ax.add_artist(d)
 
 # appropriate spacing from the left edge for the color bar
 cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
@@ -526,6 +529,7 @@ txtxoff = txtxoffs[reso]
 txtyoff1 = txtyoffs1[reso]
 txtyoff2 = txtyoffs2[reso]
 
+"""
 # put in the credits in the top right
 text = plt.text(1. - txtxoff, 1. - txtyoff1,
                 time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
@@ -535,6 +539,7 @@ plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
          color=fontcol, family=fontfam,
          fontproperties=prop, fontsize=fsz1,
          zorder=5, transform=ax.transAxes)
+"""
 
 # the center of the figure
 x0 = np.mean(plt.xlim())
@@ -558,7 +563,7 @@ if makemovie:
     for ii, time in enumerate(times):
         # remove old planet locations and dates
         tmp.remove()
-        text.remove()
+        # text.remove()
 
         # re-zoom to appropriate level
         plt.xlim([x0s[ii] - xdiff * zooms[ii], x0s[ii] + xdiff * zooms[ii]])
@@ -566,11 +571,13 @@ if makemovie:
 
         newt = time0 + dt.timedelta(time)
         # put in the credits in the top right
+        """
         text = plt.text(1. - txtxoff, 1. - txtyoff1,
                         newt.strftime('Kepler Orrery V\n%d %b %Y'),
                         color=fontcol, family=fontfam,
                         fontproperties=prop,
                         fontsize=fsz2, zorder=5, transform=ax.transAxes)
+        """
         # put the planets in the correct location
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
