@@ -61,20 +61,22 @@ orbitcol = '#424242'
 orbitalpha = 1.
 
 # add a background to the legend to distinguish it?
-legback = True
+legback = False
 # if so, use this color and alpha
 legbackcol = bkcol
 legalpha = 0.7
 
 # are we making the png files for a movie or gif
 makemovie = True
+# if this is set, don't include any text or legends
+notext = True
 # resolution of the images. Currently support 480, 720 or 1080.
 reso = 1080
 
 # output directory for the images in the movie
 # (will be created if it doesn't yet exist)
 #outdir = os.path.join(cd, 'orrery-40s/')
-outdir = os.path.join(cd, 'movie/')
+outdir = os.path.join(cd, 'smithsonian/')
 
 # number of frames to produce
 # using ffmpeg with the palette at (sec * frames/sec)
@@ -106,7 +108,7 @@ zooms[zooms < 0.] = np.interp(inds[zooms < 0.], inds[zooms > 0.],
 zooms[inds < 0.25 * nmax] = 0.45
 x0s[inds < 0.25 * nmax] = startx
 y0s[inds < 0.25 * nmax] = starty
-zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.
+zooms[(inds > 0.5 * nmax) & (inds < 0.6 * nmax)] = 1.7
 zooms[inds > 0.85 * nmax] = 0.45
 x0s[inds > 0.85 * nmax] = endx
 y0s[inds > 0.85 * nmax] = endy
@@ -121,6 +123,9 @@ y0s[~np.isfinite(y0s)] = np.interp(inds[~np.isfinite(y0s)], inds[np.isfinite(y0s
 
 # reference time for the Kepler data
 time0 = dt.datetime(2009, 1, 1, 12)
+
+if notext:
+    legback = False
 
 # the KIC number given to the solar system
 kicsolar = -5
@@ -159,14 +164,14 @@ else:
     # place the smallest ones first, but add noise
     # so they aren't perfectly in order
     inds = np.argsort(maxsemis + np.random.randn(len(maxsemis)) * 0.5)[::-1]
-    
+
     # place the smallest ones first, but add uniform noise
     # so they aren't perfectly in order
     #inds = np.argsort(maxsemis + np.random.uniform(low=-2, high=2, size=len(maxsemis)))[::-1]
-    
+
     # purely random order
     #np.random.shuffle(inds)
-    
+
     # biggest ones first, small ones fill in
     #bigs = np.where(maxsemis > 1.)[0]
     #smalls = np.where(maxsemis <= 1.)[0]
@@ -418,7 +423,7 @@ pscale = sscale * radii
 
 # color bar temperature tick values and labels
 ticks = np.array([250, 500, 750, 1000, 1250])
-labs = ['250', '500', '750', '1000', '1250', '1500']
+labs = ['250', '500', '750', '1000', '1250']
 
 # blue and red colors for the color bar
 RGB1 = np.array([1, 185, 252])
@@ -441,9 +446,10 @@ prop = fm.FontProperties(fname=fontfile)
 # create the 'Solar System' text identification
 if addsolar:
     loc = np.where(usedkics == kicsolar)[0][0]
-    plt.text(fullxcens[loc], fullycens[loc], 'Solar\nSystem', zorder=-2,
-             color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
-             horizontalalignment='center', verticalalignment='center')
+    if not notext:
+        plt.text(fullxcens[loc], fullycens[loc], 'Solar\nSystem', zorder=-2,
+                 color=fontcol, family=fontfam, fontproperties=prop, fontsize=fsz1,
+                 horizontalalignment='center', verticalalignment='center')
 
 # if we're putting in a translucent background behind the text
 # to make it easier to read
@@ -471,70 +477,73 @@ if legback:
 cbxoffs = {480: 0.09, 720: 0.07, 1080: 0.074}
 cbxoff = cbxoffs[reso]
 
-# plot the solar system planet scale
-ax.scatter(np.zeros(len(solarscale)) + cbxoff,
-           1. - 0.13 + 0.03 * np.arange(len(solarscale)), s=solarscale,
-           c=csolar, zorder=5, marker='o',
-           edgecolors='none', lw=0, cmap=mycmap, vmin=ticks.min(),
-           vmax=ticks.max(), clip_on=False, transform=ax.transAxes)
+if not notext:
+    # plot the solar system planet scale
+    ax.scatter(np.zeros(len(solarscale)) + cbxoff,
+               1. - 0.13 + 0.03 * np.arange(len(solarscale)), s=solarscale,
+               c=csolar, zorder=5, marker='o',
+               edgecolors='none', lw=0, cmap=mycmap, vmin=ticks.min(),
+               vmax=ticks.max(), clip_on=False, transform=ax.transAxes)
 
 # put in the text labels for the solar system planet scale
-for ii in np.arange(len(solarscale)):
-    ax.text(cbxoff + 0.01, 1. - 0.14 + 0.03 * ii,
-            pnames[ii], color=fontcol, family=fontfam,
-            fontproperties=prop, fontsize=fsz1, zorder=5,
-            transform=ax.transAxes)
+if not notext:
+    for ii in np.arange(len(solarscale)):
+        ax.text(cbxoff + 0.01, 1. - 0.14 + 0.03 * ii,
+                pnames[ii], color=fontcol, family=fontfam,
+                fontproperties=prop, fontsize=fsz1, zorder=5,
+                transform=ax.transAxes)
 
-# colorbar axis on the left centered with the planet scale
-ax2 = fig.add_axes([cbxoff - 0.005, 0.54, 0.01, 0.3])
-ax2.set_zorder(2)
-cbar = plt.colorbar(tmp, cax=ax2, extend='both', ticks=ticks)
-# remove the white/black outline around the color bar
-cbar.outline.set_linewidth(0)
-# allow two different tick scales
-cbar.ax.minorticks_on()
-# turn off tick lines and put the physical temperature scale on the left
-cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
-                    left=False, right=False, length=5, labelleft=True,
-                    labelright=False, zorder=5)
-# turn off tick lines and put the physical temperature approximations
-# on the right
-cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
-                    left=False, right=False, length=5, labelleft=False,
-                    labelright=True, zorder=5)
-# say where to put the physical temperature approximations and give them labels
-cbar.ax.yaxis.set_ticks([255, 409, 730, 1200], minor=True)
-cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
-                        fontproperties=prop, fontsize=fsz1, zorder=5)
-cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
-                        minor=True, color=fontcol, family=fontfam,
-                        fontproperties=prop, fontsize=fsz1)
-clab = 'Planet Equilibrium\nTemperature (K)'
-# add the overall label at the bottom of the color bar
-cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
-                   size=fsz1, zorder=5)
+    # colorbar axis on the left centered with the planet scale
+    ax2 = fig.add_axes([cbxoff - 0.005, 0.54, 0.01, 0.3])
+    ax2.set_zorder(2)
+    cbar = plt.colorbar(tmp, cax=ax2, extend='both', ticks=ticks)
+    # remove the white/black outline around the color bar
+    cbar.outline.set_linewidth(0)
+    # allow two different tick scales
+    cbar.ax.minorticks_on()
+    # turn off tick lines and put the physical temperature scale on the left
+    cbar.ax.tick_params(axis='y', which='major', color=fontcol, width=2,
+                        left=False, right=False, length=5, labelleft=True,
+                        labelright=False, zorder=5)
+    # turn off tick lines and put the physical temperature approximations
+    # on the right
+    cbar.ax.tick_params(axis='y', which='minor', color=fontcol, width=2,
+                        left=False, right=False, length=5, labelleft=False,
+                        labelright=True, zorder=5)
+    # say where to put the physical temperature approximations and give them labels
+    cbar.ax.yaxis.set_ticks([255, 409, 730, 1200], minor=True)
+    cbar.ax.set_yticklabels(labs, color=fontcol, family=fontfam,
+                            fontproperties=prop, fontsize=fsz1, zorder=5)
+    cbar.ax.set_yticklabels(['Earth', 'Mercury', 'Surface\nof Venus', 'Lava'],
+                            minor=True, color=fontcol, family=fontfam,
+                            fontproperties=prop, fontsize=fsz1)
+    clab = 'Planet Equilibrium\nTemperature (K)'
+    # add the overall label at the bottom of the color bar
+    cbar.ax.set_xlabel(clab, color=fontcol, family=fontfam, fontproperties=prop,
+                       size=fsz1, zorder=5)
 
 # switch back to the main plot
 plt.sca(ax)
 
-# upper right credit and labels text offsets
-txtxoffs = {480: 0.2, 720: 0.16, 1080: 0.16}
-txtyoffs1 = {480: 0.10, 720: 0.08, 1080: 0.08}
-txtyoffs2 = {480: 0.18, 720: 0.144, 1080: 0.144}
+if not notext:
+    # upper right credit and labels text offsets
+    txtxoffs = {480: 0.2, 720: 0.16, 1080: 0.16}
+    txtyoffs1 = {480: 0.10, 720: 0.08, 1080: 0.08}
+    txtyoffs2 = {480: 0.18, 720: 0.144, 1080: 0.144}
 
-txtxoff = txtxoffs[reso]
-txtyoff1 = txtyoffs1[reso]
-txtyoff2 = txtyoffs2[reso]
+    txtxoff = txtxoffs[reso]
+    txtyoff1 = txtyoffs1[reso]
+    txtyoff2 = txtyoffs2[reso]
 
-# put in the credits in the top right
-text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
-                family=fontfam, fontproperties=prop,
-                fontsize=fsz2, zorder=5, transform=ax.transAxes)
-plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
-         color=fontcol, family=fontfam,
-         fontproperties=prop, fontsize=fsz1,
-         zorder=5, transform=ax.transAxes)
+    # put in the credits in the top right
+    text = plt.text(1. - txtxoff, 1. - txtyoff1,
+                    time0.strftime('Kepler Orrery V\n%d %b %Y'), color=fontcol,
+                    family=fontfam, fontproperties=prop,
+                    fontsize=fsz2, zorder=5, transform=ax.transAxes)
+    plt.text(1. - txtxoff, 1. - txtyoff2, 'By Ethan Kruse\n@ethan_kruse',
+             color=fontcol, family=fontfam,
+             fontproperties=prop, fontsize=fsz1,
+             zorder=5, transform=ax.transAxes)
 
 # the center of the figure
 x0 = np.mean(plt.xlim())
@@ -558,19 +567,21 @@ if makemovie:
     for ii, time in enumerate(times):
         # remove old planet locations and dates
         tmp.remove()
-        text.remove()
+        if not notext:
+            text.remove()
 
         # re-zoom to appropriate level
         plt.xlim([x0s[ii] - xdiff * zooms[ii], x0s[ii] + xdiff * zooms[ii]])
         plt.ylim([y0s[ii] - ydiff * zooms[ii], y0s[ii] + ydiff * zooms[ii]])
 
         newt = time0 + dt.timedelta(time)
-        # put in the credits in the top right
-        text = plt.text(1. - txtxoff, 1. - txtyoff1,
-                        newt.strftime('Kepler Orrery V\n%d %b %Y'),
-                        color=fontcol, family=fontfam,
-                        fontproperties=prop,
-                        fontsize=fsz2, zorder=5, transform=ax.transAxes)
+        if not notext:
+            # put in the credits in the top right
+            text = plt.text(1. - txtxoff, 1. - txtyoff1,
+                            newt.strftime('Kepler Orrery V\n%d %b %Y'),
+                            color=fontcol, family=fontfam,
+                            fontproperties=prop,
+                            fontsize=fsz2, zorder=5, transform=ax.transAxes)
         # put the planets in the correct location
         phase = 2. * np.pi * (time - t0s) / periods
         tmp = plt.scatter(fullxcens + semis * np.cos(phase),
